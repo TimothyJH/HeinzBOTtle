@@ -8,7 +8,7 @@ namespace HeinzBOTtle {
             Dictionary<string, JsonElement>? d;
             try {
                 d = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
-            } catch (Exception e) {
+            } catch {
                 d = null;
             }
             if (d == null)
@@ -17,7 +17,7 @@ namespace HeinzBOTtle {
         }
 
         public static JsonElement GetNodeValue(string json, string node) {
-            if (node.Contains(".")) {
+            if (node.Contains('.')) {
                 string[] nodes = node.Split('.', 2);
                 Dictionary<string, JsonElement> outerMap = DeserializeJsonObject(json);
                 if (outerMap.Count == 0)
@@ -25,7 +25,7 @@ namespace HeinzBOTtle {
                 JsonElement target;
                 try {
                     target = GetNodeValue(outerMap[nodes[0]].GetRawText(), nodes[1]);
-                } catch (KeyNotFoundException e) {
+                } catch {
                     target = new JsonElement();
                 }
                 return target;
@@ -33,6 +33,8 @@ namespace HeinzBOTtle {
             Dictionary<string, JsonElement> map = DeserializeJsonObject(json);
             return map[node];
         }
+
+        
 
     }
 
