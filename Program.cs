@@ -4,8 +4,6 @@ using Discord.WebSocket;
 using HeinzBOTtle;
 using System.Text.Json;
 
-// This is a REALLY old file just used for the base commit lol.
-
 class Program {
 
     public static DiscordSocketClient discordClient = new DiscordSocketClient();
