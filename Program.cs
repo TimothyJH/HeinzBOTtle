@@ -34,6 +34,8 @@ class Program {
 
     Task DLogEvent(LogMessage msg) {
         Console.WriteLine(msg.ToString());
+        if (msg.ToString().Trim().EndsWith("Disconnecting"))
+            HypixelMethods.CleanPlayerCache();
         return Task.CompletedTask;
     }
 
@@ -49,7 +51,7 @@ class Program {
                 continue;
             switch (command) {
                 case "help":
-                    Console.WriteLine("=> shutdown\n=> update-commands\n=> display-player-cache");
+                    Console.WriteLine("=> shutdown\n=> update-commands\n=> display-player-cache\n=> clean-player-cache");
                     break;
                 case "shutdown":
                     return;
@@ -59,6 +61,9 @@ class Program {
                 case "display-player-cache":
                     DisplayPlayerCache();
                     break;
+                case "clean-player-cache":
+                    HypixelMethods.CleanPlayerCache();
+                    break;
                 default:
                     Console.WriteLine("???");
                     break;
@@ -67,22 +72,21 @@ class Program {
     }
 
     static bool LoadFileVariables() {
-        string json;
+        Json json;
         try {
-            json = File.ReadAllText("variables.json");
+            json = new Json(File.ReadAllText("variables.json"));
         } catch (Exception e) {
-            Console.WriteLine("Unable to access variables file: " + e.Message);
+            Console.WriteLine("Unable to properly access variables file: " + e.Message);
             return false;
         }
-        Dictionary<string, JsonElement> info = JsonMethods.DeserializeJsonObject(json);
-        if (info == null) {
+        if (json.IsEmpty()) {
             Console.WriteLine("Invalid variables.json file!");
             return false;
         }
 
-        string? hypixelKeyRaw = info["hypixelKey"].GetString();
-        string? botTokenRaw = info["botToken"].GetString();
-        string? discordGuildIDRaw = info["discordGuildID"].GetString();
+        string? hypixelKeyRaw = json.GetString("hypixelKey");
+        string? botTokenRaw = json.GetString("botToken");
+        string? discordGuildIDRaw = json.GetString("discordGuildID");
         if (hypixelKeyRaw == null || botTokenRaw == null || discordGuildIDRaw == null) {
             Console.WriteLine("Invalid variables.json file!");
             return false;

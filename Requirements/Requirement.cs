@@ -7,7 +7,7 @@ namespace HeinzBOTtle.Requirements {
         public abstract string Title { get; }
         public abstract string GameTitle { get; }
 
-        public abstract bool MeetsRequirement(string json);
+        public abstract bool MeetsRequirement(Json json);
 
         public static List<Requirement> RequirementList = ReqMethods.GenerateRequirementList();
 
@@ -27,11 +27,8 @@ namespace HeinzBOTtle.Requirements {
             Min = min;
         }
 
-        override public bool MeetsRequirement(string json) {
-            JsonElement element = JsonMethods.GetNodeValue(json, Node);
-            if (element.ValueKind == JsonValueKind.Undefined)
-                return false;
-            double value = element.GetDouble();
+        override public bool MeetsRequirement(Json json) {
+            double value = json.GetDouble(Node) ?? 0.0;
             return value >= Min;
         }
 
@@ -55,15 +52,9 @@ namespace HeinzBOTtle.Requirements {
             Min2 = min2;
         }
 
-        override public bool MeetsRequirement(string json) {
-            JsonElement element1 = JsonMethods.GetNodeValue(json, Node1);
-            if (element1.ValueKind == JsonValueKind.Undefined)
-                return false;
-            JsonElement element2 = JsonMethods.GetNodeValue(json, Node2);
-            if (element2.ValueKind == JsonValueKind.Undefined)
-                return false;
-            double value1 = element1.GetDouble();
-            double value2 = element2.GetDouble();
+        override public bool MeetsRequirement(Json json) {
+            double value1 = json.GetDouble(Node1) ?? 0.0;
+            double value2 = json.GetDouble(Node2) ?? 0.0;
             return value1 >= Min1 && value2 >= Min2;
         }
 
@@ -85,19 +76,9 @@ namespace HeinzBOTtle.Requirements {
             Min = min;
         }
 
-        override public bool MeetsRequirement(string json) {
-            JsonElement element1 = JsonMethods.GetNodeValue(json, Node1);
-            double value1;
-            if (element1.ValueKind == JsonValueKind.Undefined)
-                value1 = 0.0;
-            else
-                value1 = element1.GetDouble();
-            JsonElement element2 = JsonMethods.GetNodeValue(json, Node2);
-            double value2;
-            if (element2.ValueKind == JsonValueKind.Undefined)
-                value2 = 0.0;
-            else
-                value2 = element2.GetDouble();
+        override public bool MeetsRequirement(Json json) {
+            double value1 = json.GetDouble(Node1) ?? 0.0;
+            double value2 = json.GetDouble(Node2) ?? 0.0;
             return value1 + value2 >= Min;
         }
 

@@ -3,9 +3,9 @@
     class CachedPlayerInfo {
 
         public long Timestamp { get; set; }
-        public string JsonResponse { get; set; }
+        public Json JsonResponse { get; set; }
 
-        public CachedPlayerInfo(long timestamp, string jsonResponse) {
+        public CachedPlayerInfo(long timestamp, Json jsonResponse) {
             Timestamp = timestamp;
             JsonResponse = jsonResponse;
         }
@@ -16,7 +16,7 @@
 
         public static Dictionary<string, CachedPlayerInfo> PlayerCache = new Dictionary<string, CachedPlayerInfo>();
 
-        public static async Task<string> RetrievePlayerAPI(string username) {
+        public static async Task<Json> RetrievePlayerAPI(string username) {
             username = username.ToLower();
             if (PlayerCache.ContainsKey(username) && (DateTime.Now.Ticks - PlayerCache[username].Timestamp < 600L * 10000000L)) {
                 // This is the case where the API is being polled when we already have a recent enough copy.
@@ -27,11 +27,24 @@
                 Console.WriteLine("Made API request for player: " + username);
                 Task.WaitAny(responseTask, waitTimerTask);
                 if (!responseTask.IsCompleted)
-                    return "{\"success\": false}";
+                    return new Json("{\"success\": false}");
                 string json = await responseTask.Result.Content.ReadAsStringAsync();
-                PlayerCache[username] = new CachedPlayerInfo(DateTime.Now.Ticks, json);
-                return json;
+                Json formatted = new Json(json);
+                PlayerCache[username] = new CachedPlayerInfo(DateTime.Now.Ticks, formatted);
+                return formatted;
             }
+        }
+
+        public static void CleanPlayerCache() {
+            if (PlayerCache.Count == 0)
+                return;
+            List<string> oldEntries = new List<string>();
+            foreach (string username in PlayerCache.Keys) {
+                if (DateTime.Now.Ticks - PlayerCache[username].Timestamp > 600L * 10000000L)
+                    oldEntries.Add(username);
+            }
+            foreach (string username in oldEntries)
+                PlayerCache.Remove(username);
         }
 
         public static bool IsValidUsername(string username) {

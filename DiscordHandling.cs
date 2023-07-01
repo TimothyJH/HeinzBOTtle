@@ -46,8 +46,9 @@ namespace HeinzBOTtle {
                 return;
             }
 
-            string json = await HypixelMethods.RetrievePlayerAPI(username);
-            bool success = JsonMethods.DeserializeJsonObject(json)["success"].GetBoolean();
+            Json json = await HypixelMethods.RetrievePlayerAPI(username);
+            
+            bool success = json.GetBoolean("success") ?? false;
             if (!success) {
                 EmbedBuilder fail = new EmbedBuilder();
                 fail.WithDescription("Oopsies, something went wrong!");
@@ -58,8 +59,7 @@ namespace HeinzBOTtle {
                 return;
             }
 
-            JsonElement playerElement = JsonMethods.GetNodeValue(json, "player");
-            if (playerElement.ValueKind == JsonValueKind.Null) {
+            if (json.GetValueKind("player") != JsonValueKind.Object) {
                 EmbedBuilder fail = new EmbedBuilder();
                 fail.WithDescription("Hypixel doesn't seem to have any information about this player. This player probably changed usernames, never logged into Hypixel, or doesn't exist.");
                 fail.WithColor(Color.Gold);
@@ -69,21 +69,8 @@ namespace HeinzBOTtle {
                 return;
             }
 
-            int level;
-            JsonElement xpElement = JsonMethods.GetNodeValue(json, "player.networkExp");
-            if (xpElement.ValueKind == JsonValueKind.Undefined)
-                level = 0;
-            else
-                level = (int) HypixelMethods.GetNetworkLevelFromXP(xpElement.GetDouble());
-            JsonElement usernameElement = JsonMethods.GetNodeValue(json, "player.displayname");
-            
-            string? properUsername;
-            if (usernameElement.ValueKind == JsonValueKind.Undefined)
-                properUsername = "?????";
-            else
-                properUsername = usernameElement.GetString();
-            if (properUsername != null)
-                username = properUsername;
+            int level = (int)HypixelMethods.GetNetworkLevelFromXP(json.GetDouble("player.networkExp") ?? 0.0);
+            username = json.GetString("player.displayname") ?? "?????";
 
             List<Requirement> met = ReqMethods.GetRequirementsMet(json);
             EmbedBuilder embed = new EmbedBuilder();

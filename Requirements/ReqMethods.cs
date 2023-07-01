@@ -33,7 +33,7 @@
             return list;
         }
 
-        public static List<Requirement> GetRequirementsMet(string playerJson) {
+        public static List<Requirement> GetRequirementsMet(Json playerJson) {
             List<Requirement> met = new List<Requirement>();
             foreach (Requirement req in Requirement.RequirementList) {
                 if (req.MeetsRequirement(playerJson))
@@ -48,7 +48,7 @@
             string formatted = "";
             foreach (Requirement req in list)
                 formatted += req.GameTitle + ", ";
-            return formatted.Substring(0, formatted.Length - 2);
+            return formatted[..^2];
         }
 
     }
