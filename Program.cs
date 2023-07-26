@@ -2,52 +2,106 @@
 using Discord.Net;
 using Discord.WebSocket;
 using HeinzBOTtle;
-using System.Text.Json;
+using HeinzBOTtle.Commands;
 
 class Program {
+    
+    private bool IsReady { get; set; } = false;
 
-    public static DiscordSocketClient discordClient = new DiscordSocketClient();
-    public static HttpClient httpClient = new HttpClient();
-    public static string hypixelKey = "";
-    public static string botToken = "";
-    public static ulong discordGuildID = 0;
+    private static Task Main() => new Program().MainAsync();
 
-    static Task Main() => new Program().MainAsync();
+    private static bool LoadFileVariables() {
+        Json json;
+        try {
+            json = new Json(File.ReadAllText("variables.json"));
+        } catch (Exception e) {
+            Console.WriteLine("Unable to properly access variables file: " + e.Message);
+            return false;
+        }
+        if (json.IsEmpty()) {
+            Console.WriteLine("Invalid variables.json file!");
+            return false;
+        }
 
-    async Task MainAsync() {
+        string? rawHypixelKey = json.GetString("HypixelKey");
+        string? rawDiscordToken = json.GetString("DiscordToken");
+        string? rawHypixelGuildID = json.GetString("HypixelGuildID");
+        string? rawDiscordGuildID = json.GetString("DiscordGuildID");
+        string? rawLeaderboardsChannelID = json.GetString("LeaderboardsChannelID");
+        if (rawHypixelKey == null || rawDiscordToken == null || rawHypixelGuildID == null || rawDiscordGuildID == null || rawLeaderboardsChannelID == null) {
+            Console.WriteLine("Invalid variables.json file!");
+            return false;
+        }
+        HBData.HypixelKey = rawHypixelKey;
+        HBData.DiscordToken = rawDiscordToken;
+        HBData.HypixelGuildID = rawHypixelGuildID;
+        HBData.DiscordGuildID = ulong.Parse(rawDiscordGuildID);
+        HBData.LeaderboardsChannelID = ulong.Parse(rawLeaderboardsChannelID);
+        return true;
+    }
+
+    private async Task MainAsync() {
+        // Loading config:
+        Console.WriteLine("Running in: " + Directory.GetCurrentDirectory().ToString());
         if (!LoadFileVariables())
             return;
 
-        DiscordHandling.CommandCooldowns["reqs"] = DateTime.Now.Ticks;
+        // Setting up the Discord client:
+        HBData.DiscordClient.Log += DLogEvent;
+        HBData.DiscordClient.Ready += DReadyEvent;
+        await HBData.DiscordClient.LoginAsync(TokenType.Bot, HBData.DiscordToken);
+        await HBData.DiscordClient.StartAsync();
 
-        discordClient.Log += DLogEvent;
-        discordClient.Ready += DReadyEvent;
-        await discordClient.LoginAsync(TokenType.Bot, botToken);
-        await discordClient.StartAsync();
-        await Task.Delay(3000);
+        // Waiting for the Discord client to be ready:
+        while (true) {
+            await Task.Delay(250);
+            if (IsReady)
+                break;
+        }
 
-        Console.WriteLine("Running in: " + Directory.GetCurrentDirectory().ToString());
-        await ConsoleClient();
+        // Running the console client:
+        await ConsoleClientAsync();
 
-        await discordClient.StopAsync();
+        // Stopping the program:
+        await HBData.DiscordClient.StopAsync();
     }
 
-    Task DLogEvent(LogMessage msg) {
+    private Task DLogEvent(LogMessage msg) {
         Console.WriteLine(msg.ToString());
         if (msg.ToString().Trim().EndsWith("Disconnecting"))
             HypixelMethods.CleanPlayerCache();
         return Task.CompletedTask;
     }
 
-    Task DReadyEvent() {
-        discordClient.SlashCommandExecuted += DiscordHandling.SlashCommandHandler;
+    private Task DReadyEvent() {
+        HBData.DiscordClient.SlashCommandExecuted += DSlashCommandExecutedEventAsync;
+        IsReady = true;
         return Task.CompletedTask;
     }
 
-    static async Task ConsoleClient() {
+    private async Task DSlashCommandExecutedEventAsync(SocketSlashCommand command) {
+        Console.WriteLine($"Command executed: /{command.Data.Name} by {command.User.Username} in #{command.Channel.Name}");
+        HBCommand? hbCommand = HBData.HBCommandList.Find(x => command.Data.Name.Equals(x.Name));
+        if (hbCommand == null) {
+            await command.RespondAsync(embed: (new EmbedBuilder()).WithDescription("?????").Build());
+            return;
+        }
+        if (DateTime.Now.Ticks - hbCommand.LastExecution < 5L * 10000000L) {
+            EmbedBuilder embed = new EmbedBuilder();
+            embed.WithDescription("This command is currently on cooldown; try again in a few seconds.");
+            embed.WithColor(Color.Gold);
+            await command.RespondAsync(embed: embed.Build());
+            return;
+        }
+        hbCommand.LastExecution = DateTime.Now.Ticks;
+        _ = hbCommand.ExecuteCommandAsync(command);
+    }
+
+    private static async Task ConsoleClientAsync() {
+        Console.WriteLine("HeinzBOTtle\nType \"help\" for a list of console commands.");
         while (true) {
             string? command = Console.ReadLine();
-            if (command == null || command == string.Empty)
+            if (command == null || command.Equals(""))
                 continue;
             switch (command) {
                 case "help":
@@ -56,7 +110,7 @@ class Program {
                 case "shutdown":
                     return;
                 case "update-commands":
-                    await UpdateCommands();
+                    await UpdateCommandsAsync();
                     break;
                 case "display-player-cache":
                     DisplayPlayerCache();
@@ -71,57 +125,47 @@ class Program {
         }
     }
 
-    static bool LoadFileVariables() {
-        Json json;
-        try {
-            json = new Json(File.ReadAllText("variables.json"));
-        } catch (Exception e) {
-            Console.WriteLine("Unable to properly access variables file: " + e.Message);
-            return false;
+    private static async Task UpdateCommandsAsync() {
+        Console.WriteLine("Getting guild info...");
+        SocketGuild guild = HBData.DiscordClient.GetGuild(HBData.DiscordGuildID);
+        IReadOnlyCollection<SocketApplicationCommand> existingCommands = await guild.GetApplicationCommandsAsync();
+        Dictionary<string, SocketApplicationCommand> existingCommandsMap = new Dictionary<string, SocketApplicationCommand>();
+        foreach (SocketApplicationCommand existingCommand in existingCommands) {
+            if (existingCommand.Type == ApplicationCommandType.Slash)
+                existingCommandsMap.Add(existingCommand.Name, existingCommand);
         }
-        if (json.IsEmpty()) {
-            Console.WriteLine("Invalid variables.json file!");
-            return false;
+        Console.WriteLine("Performing command updates...");
+        foreach (HBCommand command in HBData.HBCommandList) {
+            await Task.Delay(1000);
+            if (existingCommandsMap.ContainsKey(command.Name)) {
+                await existingCommandsMap[command.Name].ModifyAsync(delegate(ApplicationCommandProperties p) {
+                    SlashCommandProperties oldProperties = (SlashCommandProperties)p;
+                    SlashCommandProperties newProperties = command.GenerateCommandProperties();
+                    oldProperties.Name = newProperties.Name;
+                    oldProperties.Description = newProperties.Description;
+                    oldProperties.IsDefaultPermission = newProperties.IsDefaultPermission;
+                    oldProperties.Options = newProperties.Options;
+                });
+            } else {
+                try {
+                    await guild.CreateApplicationCommandAsync(command.GenerateCommandProperties());
+                } catch (HttpException exception) {
+                    Console.WriteLine($"Creation of \"{command.Name}\" command failed: " + exception.Message);
+                }
+            }
+            
         }
-
-        string? hypixelKeyRaw = json.GetString("hypixelKey");
-        string? botTokenRaw = json.GetString("botToken");
-        string? discordGuildIDRaw = json.GetString("discordGuildID");
-        if (hypixelKeyRaw == null || botTokenRaw == null || discordGuildIDRaw == null) {
-            Console.WriteLine("Invalid variables.json file!");
-            return false;
-        }
-        
-        hypixelKey = hypixelKeyRaw;
-        botToken = botTokenRaw;
-        discordGuildID = ulong.Parse(discordGuildIDRaw);
-        return true;
+        Console.WriteLine("Done!");
     }
 
-    static async Task UpdateCommands() {
-        SocketGuild guild = discordClient.GetGuild(discordGuildID);
-
-        SlashCommandBuilder reqsCommand = new SlashCommandBuilder();
-        reqsCommand.IsDefaultPermission = true;
-        reqsCommand.WithName("reqs");
-        reqsCommand.WithDescription("[EXPERIMENTAL] This checks the guild requirements met by the provided player.");
-        reqsCommand.AddOption("username", ApplicationCommandOptionType.String, "The username of the player to check", isRequired: true);
-        try {
-            await guild.CreateApplicationCommandAsync(reqsCommand.Build());
-        } catch (HttpException exception) {
-            Console.WriteLine("Creation of \"reqs\" command failed: " + exception.Message);
-        }
-        
-    }
-
-    static void DisplayPlayerCache() {
-        Console.WriteLine("Current Timestamp: "  + DateTime.Now.Ticks);
-        if (HypixelMethods.PlayerCache.Count == 0) {
+    private static void DisplayPlayerCache() {
+        Console.WriteLine("Current Timestamp: " + DateTime.Now.Ticks);
+        if (HBData.PlayerCache.Count == 0) {
             Console.WriteLine("The cache is empty.");
             return;
         }
-        foreach (string username in HypixelMethods.PlayerCache.Keys)
-            Console.WriteLine(username + " - " + HypixelMethods.PlayerCache[username].Timestamp);
+        foreach (string username in HBData.PlayerCache.Keys)
+            Console.WriteLine(username + " - " + HBData.PlayerCache[username].Timestamp);
     }
 
 }

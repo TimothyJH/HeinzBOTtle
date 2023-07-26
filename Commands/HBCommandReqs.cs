@@ -3,38 +3,15 @@ using Discord.WebSocket;
 using HeinzBOTtle.Requirements;
 using System.Text.Json;
 
-namespace HeinzBOTtle {
+namespace HeinzBOTtle.Commands {
 
-    class DiscordHandling {
+    class HBCommandReqs : HBCommand {
 
-        public static Dictionary<string, long> CommandCooldowns = new Dictionary<string, long>();
+        public HBCommandReqs() : base("reqs") { }
 
-        public static async Task SlashCommandHandler(SocketSlashCommand command) {
-            switch (command.Data.Name) {
-                case "reqs":
-                    if (DateTime.Now.Ticks - CommandCooldowns["reqs"] < 5L * 10000000L) {
-                        await command.RespondAsync(embed: GenerateCooldownEmbed());
-                        break;
-                    }
-                    CommandCooldowns["reqs"] = DateTime.Now.Ticks;
-                    _ = ExecuteRequirementsCommand(command);
-                    break;
-                default:
-                    _ = command.RespondAsync(embed: (new EmbedBuilder()).WithDescription("?????").Build());
-                    break;
-            }
-        }
-
-        public static Embed GenerateCooldownEmbed() {
-            EmbedBuilder embed = new EmbedBuilder();
-            embed.WithDescription("This command is currently on cooldown; try again in a few seconds.");
-            embed.WithColor(Color.Gold);
-            return embed.Build();
-        }
-
-        public static async Task ExecuteRequirementsCommand(SocketSlashCommand command) {
+        public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
             await command.DeferAsync();
-            string username = (string) command.Data.Options.First<SocketSlashCommandDataOption>();
+            string username = (string)command.Data.Options.First<SocketSlashCommandDataOption>();
             username = username.Trim();
             if (!HypixelMethods.IsValidUsername(username)) {
                 EmbedBuilder fail = new EmbedBuilder();
@@ -47,7 +24,7 @@ namespace HeinzBOTtle {
             }
 
             Json json = await HypixelMethods.RetrievePlayerAPI(username);
-            
+
             bool success = json.GetBoolean("success") ?? false;
             if (!success) {
                 EmbedBuilder fail = new EmbedBuilder();
@@ -74,7 +51,7 @@ namespace HeinzBOTtle {
 
             List<Requirement> met = ReqMethods.GetRequirementsMet(json);
             EmbedBuilder embed = new EmbedBuilder();
-            
+
             embed.WithTitle(username.Replace("_", "\\_"));
             string output = "\n";
             if (met.Count == 0)
@@ -86,7 +63,7 @@ namespace HeinzBOTtle {
             foreach (Requirement req in met) {
                 output += "\n" + req.Title + " - " + req.GameTitle;
             }
-            
+
             embed.WithDescription(output);
             if (level >= 85 && met.Count >= 1)
                 embed.WithColor(Color.Green);
@@ -95,6 +72,15 @@ namespace HeinzBOTtle {
             await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
                 p.Embed = embed.Build();
             });
+        }
+
+        public override SlashCommandProperties GenerateCommandProperties() {
+            SlashCommandBuilder command = new SlashCommandBuilder();
+            command.IsDefaultPermission = true;
+            command.WithName(Name);
+            command.WithDescription("This checks the guild requirements met by the provided player.");
+            command.AddOption("username", ApplicationCommandOptionType.String, "The username of the player to check", isRequired: true);
+            return command.Build();
         }
 
     }

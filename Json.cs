@@ -14,6 +14,18 @@ namespace HeinzBOTtle {
             }
         }
 
+        public Json(JsonElement json) {
+            if (json.ValueKind != JsonValueKind.Object)
+                data = new Dictionary<string, object>();
+            else {
+                try {
+                    data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                } catch {
+                    data = new Dictionary<string, object>();
+                }
+            }
+        }
+
         public bool IsEmpty() {
             return data == null || data.Count == 0;
         }
@@ -123,6 +135,20 @@ namespace HeinzBOTtle {
         public bool? GetBoolean(string node) {
             JsonElement element = GetElement(node);
             return element.ValueKind == JsonValueKind.True || element.ValueKind == JsonValueKind.False ? element.GetBoolean() : null;
+        }
+
+        public List<JsonElement>? GetArray(string node) {
+            JsonElement element = GetElement(node);
+            if (element.ValueKind == JsonValueKind.Array) {
+                List<JsonElement>? list;
+                try {
+                    list = JsonSerializer.Deserialize<List<JsonElement>>(element);
+                } catch {
+                    list = null;
+                }
+                return list;
+            } else
+                return null;
         }
 
     }
