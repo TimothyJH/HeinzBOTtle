@@ -10,6 +10,11 @@
             Rankings = new List<LBRanking>();
         }
 
+        public LBRankingData(string properUsername) {
+            ProperUsername = properUsername;
+            Rankings = new List<LBRanking>();
+        }
+
     }
 
 }

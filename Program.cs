@@ -3,6 +3,7 @@ using Discord.Net;
 using Discord.WebSocket;
 using HeinzBOTtle;
 using HeinzBOTtle.Commands;
+using HeinzBOTtle.Leaderboards;
 
 class Program {
     
@@ -105,7 +106,7 @@ class Program {
                 continue;
             switch (command) {
                 case "help":
-                    Console.WriteLine("=> shutdown\n=> update-commands\n=> display-player-cache\n=> clean-player-cache");
+                    Console.WriteLine("=> shutdown\n=> update-commands\n=> display-player-cache\n=> clean-player-cache\n=> get-rankings");
                     break;
                 case "shutdown":
                     return;
@@ -117,6 +118,12 @@ class Program {
                     break;
                 case "clean-player-cache":
                     HypixelMethods.CleanPlayerCache();
+                    break;
+                case "get-rankings":
+                    Console.WriteLine("Starting rankings retrieval...");
+                    HBData.LeaderboardRankings.Clear();
+                    await LBMethods.RefreshRankingsFromChannelAsync((SocketTextChannel)HBData.DiscordClient.GetChannel(HBData.LeaderboardsChannelID));
+                    Console.WriteLine("Done!");
                     break;
                 default:
                     Console.WriteLine("???");

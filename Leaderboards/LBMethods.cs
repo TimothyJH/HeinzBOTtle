@@ -23,15 +23,15 @@ namespace HeinzBOTtle.Leaderboards {
         }
 
         public static async Task WipeLeaderboardsChannel(SocketTextChannel lbChannel) {
-            List<RestMessage> oldMessages = new List<RestMessage>();
+            List<IMessage> oldMessages = new List<IMessage>();
             IAsyncEnumerable<IReadOnlyCollection<IMessage>> pagesAsync = lbChannel.GetMessagesAsync(100);
             List<IReadOnlyCollection<IMessage>> pages = await pagesAsync.ToListAsync();
             foreach (IReadOnlyCollection<IMessage> page in pages) {
                 foreach (IMessage message in page) {
-                    oldMessages.Add((RestMessage)message);
+                    oldMessages.Add(message);
                 }
             }
-            foreach (RestMessage message in oldMessages) {
+            foreach (IMessage message in oldMessages) {
                 await Task.Delay(1000);
                 if (message.Thread != null) {
                     await message.Thread.DeleteAsync();
@@ -141,29 +141,29 @@ namespace HeinzBOTtle.Leaderboards {
             }
 
             // Pin the leaderboard headers so that they display in alphabetical order:
-            List<RestMessage> headers = new List<RestMessage>();
+            List<IMessage> headers = new List<IMessage>();
             IAsyncEnumerable<IReadOnlyCollection<IMessage>> pagesAsync = lbChannel.GetMessagesAsync(HBData.LeaderboardList.Count);
             List<IReadOnlyCollection<IMessage>> pages = await pagesAsync.ToListAsync();
             foreach (IReadOnlyCollection<IMessage> page in pages) {
                 foreach (IMessage header in page) {
-                    headers.Add((RestMessage)header);
+                    headers.Add(header);
                 }
             }
-            foreach (RestMessage header in headers) {
+            foreach (IMessage header in headers) {
                 await Task.Delay(1000);
                 try {
-                    await ((RestUserMessage)header).PinAsync();
+                    await ((IUserMessage)header).PinAsync();
                 } catch { }
             }
             await Task.Delay(1000);
 
             // Delete the pin messages:
-            List<RestMessage> headersPins = new List<RestMessage>();
+            List<IMessage> headersPins = new List<IMessage>();
             IAsyncEnumerable<IReadOnlyCollection<IMessage>> pagesPinsAsync = lbChannel.GetMessagesAsync(HBData.LeaderboardList.Count);
             List<IReadOnlyCollection<IMessage>> pagesPins = await pagesPinsAsync.ToListAsync();
             foreach (IReadOnlyCollection<IMessage> page in pagesPins) {
                 foreach (IMessage header in page) {
-                    headersPins.Add((RestMessage)header);
+                    headersPins.Add(header);
                 }
             }
             await Task.Delay(1000);
@@ -184,6 +184,49 @@ namespace HeinzBOTtle.Leaderboards {
 
         public static void RefreshRankings(Leaderboard leaderboard) {
             Dictionary<string, LBRanking> boardRankings = leaderboard.GenerateRankings();
+            foreach (string key in boardRankings.Keys) {
+                LBRanking target = boardRankings[key];
+                List<LBRanking> playerRankings = HBData.LeaderboardRankings[key].Rankings;
+                for (int i = playerRankings.Count - 1; i >= -1; i--) {
+                    if (i == -1) {
+                        playerRankings.Insert(0, target);
+                        break;
+                    }
+                    if (target >= playerRankings[i]) {
+                        playerRankings.Insert(i + 1, target);
+                        break;
+                    }
+                }
+            }
+        }
+
+        public static async Task RefreshRankingsFromChannelAsync(SocketTextChannel channel) {
+            List<IMessage> messages = new List<IMessage>();
+            List<IReadOnlyCollection<IMessage>> pages = await channel.GetMessagesAsync(HBData.LeaderboardList.Count + 5).ToListAsync();
+            foreach (IReadOnlyCollection<IMessage> page in pages) {
+                foreach (IMessage message in page)
+                    messages.Add(message);
+            }
+            bool initializedPlayers = false;
+            for (int i = messages.Count - 1; i >= 0; i--) {
+                IMessage message = messages[i];
+                if (message.Embeds.Count == 0 || message.Thread == null)
+                    continue;
+                IEmbed embed = message.Embeds.First();
+                Leaderboard? leaderboard = HBData.LeaderboardList.Find(x => x.GameTitle.Equals(embed.Title) && x.GameStat.Equals(embed.Description ?? ""));
+                if (leaderboard == null)
+                    continue;
+                if (initializedPlayers)
+                    await RefreshRankingsFromChannelAsync(leaderboard, message.Thread, false);
+                else {
+                    await RefreshRankingsFromChannelAsync(leaderboard, message.Thread, true);
+                    initializedPlayers = true;
+                }
+            }
+        }
+
+        public static async Task RefreshRankingsFromChannelAsync(Leaderboard leaderboard, IThreadChannel thread, bool initializePlayers) {
+            Dictionary<string, LBRanking> boardRankings = await leaderboard.GenerateRankingsFromThreadAsync(thread, initializePlayers);
             foreach (string key in boardRankings.Keys) {
                 LBRanking target = boardRankings[key];
                 List<LBRanking> playerRankings = HBData.LeaderboardRankings[key].Rankings;

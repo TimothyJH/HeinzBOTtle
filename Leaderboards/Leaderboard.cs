@@ -102,6 +102,31 @@ namespace HeinzBOTtle.Leaderboards {
             return rankings;
         }
 
+        public async Task<Dictionary<string, LBRanking>> GenerateRankingsFromThreadAsync(IThreadChannel thread, bool initializePlayers) {
+            Dictionary<string, LBRanking> rankings = new Dictionary<string, LBRanking>();
+            List<IMessage> messages = new List<IMessage>();
+            List<IReadOnlyCollection<IMessage>> pages = await thread.GetMessagesAsync(5).ToListAsync();
+            foreach (IReadOnlyCollection<IMessage> page in pages) {
+                foreach (IMessage message in page)
+                    messages.Add(message);
+            }
+            foreach (IMessage message in messages) {
+                if (message.Embeds.Count == 0)
+                    continue;
+                string description = message.Embeds.First().Description;
+                if (!description.StartsWith('`'))
+                    continue;
+                string[] entries = description.Split('\n');
+                foreach (string entry in entries) {
+                    string[] components = entry.Split(' ', 3); // 0 is position prefix, 1 is username
+                    if (initializePlayers)
+                        HBData.LeaderboardRankings.Add(components[1].ToLower(), new LBRankingData(components[1]));
+                    rankings.Add(components[1].ToLower(), new LBRanking(int.Parse(components[0][2..5]), GameTitle, GameStat));
+                }
+            }
+            return rankings;
+        }
+
         public virtual string GenerateDisplayStat(PlayerEntry entry) {
             return HypixelMethods.WithCommas(entry.Stat);
         }
