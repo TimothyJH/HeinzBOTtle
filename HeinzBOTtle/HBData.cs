@@ -18,6 +18,7 @@ namespace HeinzBOTtle {
         public static string HypixelGuildID { get; set; } = "";
         public static ulong DiscordGuildID { get; set; } = 0;
         public static ulong LeaderboardsChannelID { get; set; } = 0;
+        public static ulong AchievementsChannelID { get; set; } = 0;
 
         // Assets
         public static List<HBCommand> HBCommandList { get; } = GenerateHBCommandList();

@@ -30,7 +30,9 @@ namespace HeinzBOTtle {
             string? rawHypixelGuildID = json.GetString("HypixelGuildID");
             string? rawDiscordGuildID = json.GetString("DiscordGuildID");
             string? rawLeaderboardsChannelID = json.GetString("LeaderboardsChannelID");
-            if (rawHypixelKey == null || rawDiscordToken == null || rawHypixelGuildID == null || rawDiscordGuildID == null || rawLeaderboardsChannelID == null) {
+            string? rawAchievementsChannelID = json.GetString("AchievementsChannelID");
+            if (rawHypixelKey == null || rawDiscordToken == null || rawHypixelGuildID == null || rawDiscordGuildID == null
+                || rawLeaderboardsChannelID == null || rawAchievementsChannelID == null) {
                 Console.WriteLine("Invalid variables.json file!");
                 return false;
             }
@@ -39,6 +41,7 @@ namespace HeinzBOTtle {
             HBData.HypixelGuildID = rawHypixelGuildID;
             HBData.DiscordGuildID = ulong.Parse(rawDiscordGuildID);
             HBData.LeaderboardsChannelID = ulong.Parse(rawLeaderboardsChannelID);
+            HBData.AchievementsChannelID = ulong.Parse(rawAchievementsChannelID);
             return true;
         }
 
@@ -77,6 +80,7 @@ namespace HeinzBOTtle {
 
         private Task DReadyEvent() {
             HBData.DiscordClient.SlashCommandExecuted += DSlashCommandExecutedEventAsync;
+            HBData.DiscordClient.MessageReceived += DMessageReceivedEventAsync;
             IsReady = true;
             return Task.CompletedTask;
         }
@@ -97,6 +101,12 @@ namespace HeinzBOTtle {
             }
             hbCommand.LastExecution = DateTime.Now.Ticks;
             _ = hbCommand.ExecuteCommandAsync(command);
+        }
+
+        private Task DMessageReceivedEventAsync(SocketMessage message) {
+            if (message.Channel.Id == HBData.AchievementsChannelID && message is SocketUserMessage)
+                _ = AchievementThreadsMethods.ProcessAchievementChannelMessage((SocketUserMessage)message);
+            return Task.CompletedTask;
         }
 
         private static async Task ConsoleClientAsync() {
@@ -179,4 +189,3 @@ namespace HeinzBOTtle {
     }
 
 }
-
