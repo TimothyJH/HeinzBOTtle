@@ -1,20 +1,18 @@
-﻿namespace HeinzBOTtle.Leaderboards {
-    
-    class LBRankingData {
+﻿namespace HeinzBOTtle.Leaderboards;
 
-        public string ProperUsername { get; }
-        public List<LBRanking> Rankings { get; }
+public class LBRankingData {
 
-        public LBRankingData(Json player) {
-            ProperUsername = player.GetString("player.displayname") ?? "?????";
-            Rankings = new List<LBRanking>();
-        }
+    public string ProperUsername { get; }
+    public List<LBRanking> Rankings { get; }
 
-        public LBRankingData(string properUsername) {
-            ProperUsername = properUsername;
-            Rankings = new List<LBRanking>();
-        }
+    public LBRankingData(Json player) {
+        ProperUsername = player.GetString("player.displayname") ?? "?????";
+        Rankings = new List<LBRanking>();
+    }
 
+    public LBRankingData(string properUsername) {
+        ProperUsername = properUsername;
+        Rankings = new List<LBRanking>();
     }
 
 }
