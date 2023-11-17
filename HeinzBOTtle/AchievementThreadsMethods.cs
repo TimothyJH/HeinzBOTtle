@@ -9,7 +9,7 @@ public static class AchievementThreadsMethods {
         await Task.Delay(500);
         ITextChannel channel = (ITextChannel)(await HBData.DiscordClient.GetChannelAsync(HBData.AchievementsChannelID));
         IMessage message = await channel.GetMessageAsync(receivedMessage.Id);
-        if (!(message.Attachments.Count > 0 || message.Embeds.Count > 0) || message.Thread != null)
+        if (message is not IUserMessage userMessage || message.Thread != null || userMessage.Content.Contains("[NoThread]", StringComparison.OrdinalIgnoreCase))
             return;
         try {
             await channel.CreateThreadAsync($"{message.Author.Username}'s Achievement", message: message);
