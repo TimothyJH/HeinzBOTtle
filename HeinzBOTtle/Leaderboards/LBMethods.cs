@@ -9,12 +9,15 @@ namespace HeinzBOTtle.Leaderboards;
 
 public static class LBMethods {
 
+    /// <summary>Resets all entries in all leaderboards.</summary>
     public static void WipeLeaderboards() {
         foreach (Leaderboard leaderboard in HBData.LeaderboardList)
             leaderboard.Reset();
     }
 
-    // Assumes non-negative value even though parameter integer is signed
+    /// <summary>If the provided integer does not fall between 0 and 999 inclusive, this method will not function as specified.</summary>
+    /// <param name="number">An integer between 0 and 999 inclusive</param>
+    /// <returns>The provided integer formatted to exactly three characters.</returns>
     public static string FormatPosition(int number) {
         if (number < 10)
             return "00" + number;
@@ -24,9 +27,11 @@ public static class LBMethods {
             return number.ToString();
     }
 
-    public static async Task WipeLeaderboardsChannel(SocketTextChannel lbChannel) {
+    /// <summary>Removes the last 100 messages in the provided Discord text channel. This is to be used to clear the channel associated with the leaderboards.</summary>
+    /// <param name="channel">The channel to wipe</param>
+    public static async Task WipeLeaderboardsChannel(SocketTextChannel channel) {
         List<IMessage> oldMessages = new List<IMessage>();
-        IAsyncEnumerable<IReadOnlyCollection<IMessage>> pagesAsync = lbChannel.GetMessagesAsync(100);
+        IAsyncEnumerable<IReadOnlyCollection<IMessage>> pagesAsync = channel.GetMessagesAsync(100);
         List<IReadOnlyCollection<IMessage>> pages = await pagesAsync.ToListAsync();
         foreach (IReadOnlyCollection<IMessage> page in pages) {
             foreach (IMessage message in page) {
@@ -43,6 +48,7 @@ public static class LBMethods {
         }
     }
 
+    /// <summary>Updates the leaderboards. This task covers everything necessary after the successful execution of the command to update the leaderboards.</summary>
     public static async Task UpdateLeaderboards() {
         // Performing some setup:
         HBData.LeaderboardsUpdating = true;
@@ -179,11 +185,14 @@ public static class LBMethods {
         HBData.LeaderboardsUpdating = false;
     }
 
+    /// <summary>Updates the rankings in <see cref="HBData.LeaderboardRankings"/> for all leaderboards.</summary>
     public static void RefreshRankings() {
         foreach (Leaderboard leaderboard in HBData.LeaderboardList)
             RefreshRankings(leaderboard);
     }
 
+    /// <summary>Updates the rankings in <see cref="HBData.LeaderboardRankings"/> for the provided leaderboard.</summary>
+    /// <param name="leaderboard">The leaderboard for which to update the rankings</param>
     public static void RefreshRankings(Leaderboard leaderboard) {
         Dictionary<string, LBRanking> boardRankings = leaderboard.GenerateRankings();
         foreach (string key in boardRankings.Keys) {
@@ -202,6 +211,8 @@ public static class LBMethods {
         }
     }
 
+    /// <summary>Updates the rankings in <see cref="HBData.LeaderboardRankings"/> for all leaderboards based on the existing threads in the provided Discord text channel.</summary>
+    /// <param name="channel">The leaderboards channel from which to retrieve the rankings</param>
     public static async Task RefreshRankingsFromChannelAsync(SocketTextChannel channel) {
         List<IMessage> messages = new List<IMessage>();
         List<IReadOnlyCollection<IMessage>> pages = await channel.GetMessagesAsync(HBData.LeaderboardList.Count + 5).ToListAsync();
@@ -227,6 +238,10 @@ public static class LBMethods {
         }
     }
 
+    /// <summary>Updates the rankings in <see cref="HBData.LeaderboardRankings"/> for the given leaderboard based on the existing messages in the provided Discord thread.</summary>
+    /// <param name="leaderboard">The leaderboard for which to update the rankings</param>
+    /// <param name="thread">The Discord thread from which the leaderboard state should be retrieved</param>
+    /// <param name="initializePlayers">True if this task should initialize the players</param>
     public static async Task RefreshRankingsFromChannelAsync(Leaderboard leaderboard, IThreadChannel thread, bool initializePlayers) {
         Dictionary<string, LBRanking> boardRankings = await leaderboard.GenerateRankingsFromThreadAsync(thread, initializePlayers);
         foreach (string key in boardRankings.Keys) {

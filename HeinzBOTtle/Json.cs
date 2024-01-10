@@ -2,8 +2,12 @@
 
 namespace HeinzBOTtle;
 
+/// <summary>
+/// Represents a JSON object that is only recursively parsed when necessary. Supports access by dot-delimited nodes.
+/// </summary>
 public class Json {
 
+    /// <summary>The top-level representation of the JSON object.</summary>
     private Dictionary<string, object>? data;
 
     public Json(string json) {
@@ -26,10 +30,13 @@ public class Json {
         }
     }
 
+    /// <returns>True if the JSON object has no entries, otherwise false.</returns>
     public bool IsEmpty() {
         return data == null || data.Count == 0;
     }
 
+    /// <param name="node">The dot-delimited JSON node holding the value</param>
+    /// <returns>The data type found at the provided dot-delimited node.</returns>
     public JsonValueKind GetValueKind(string node) {
         if (data == null)
             return JsonValueKind.Undefined;
@@ -76,6 +83,8 @@ public class Json {
             return JsonValueKind.Undefined;
     }
 
+    /// <param name="node">The dot-delimited JSON node holding the value</param>
+    /// <returns>The data type found at the provided dot-delimited node.</returns>
     public JsonElement GetElement(string node) {
         if (data == null)
             return new JsonElement();
@@ -122,21 +131,29 @@ public class Json {
             return new JsonElement();
     }
 
+    /// <param name="node">The dot-delimited JSON node holding the value</param>
+    /// <returns>The string found at the provided dot-delimited node if it exists, otherwise null.</returns>
     public string? GetString(string node) {
         JsonElement element = GetElement(node);
         return element.ValueKind == JsonValueKind.String ? element.GetString() : null;
     }
 
+    /// <param name="node">The dot-delimited JSON node holding the value</param>
+    /// <returns>The double found at the provided dot-delimited node if it exists, otherwise null.</returns>
     public double? GetDouble(string node) {
         JsonElement element = GetElement(node);
         return element.ValueKind == JsonValueKind.Number ? element.GetDouble() : null;
     }
 
+    /// <param name="node">The dot-delimited JSON node holding the value</param>
+    /// <returns>The boolean found at the provided dot-delimited node if it exists, otherwise null.</returns>
     public bool? GetBoolean(string node) {
         JsonElement element = GetElement(node);
         return element.ValueKind == JsonValueKind.True || element.ValueKind == JsonValueKind.False ? element.GetBoolean() : null;
     }
 
+    /// <param name="node">The dot-delimited JSON node holding the value</param>
+    /// <returns>The array found at the provided dot-delimited node formatted as a list if it exists, otherwise null.</returns>
     public List<JsonElement>? GetArray(string node) {
         JsonElement element = GetElement(node);
         if (element.ValueKind == JsonValueKind.Array) {

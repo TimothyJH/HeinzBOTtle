@@ -6,6 +6,9 @@ using System.Text.Json;
 
 namespace HeinzBOTtle.Commands;
 
+/// <summary>
+/// Represents /reqs.
+/// </summary>
 public class HBCommandReqs : HBCommand {
 
     public HBCommandReqs() : base("reqs") { }

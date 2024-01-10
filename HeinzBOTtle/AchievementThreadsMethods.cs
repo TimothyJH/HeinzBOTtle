@@ -5,7 +5,9 @@ namespace HeinzBOTtle;
 
 public static class AchievementThreadsMethods {
 
-    public static async Task ProcessAchievementChannelMessage(SocketUserMessage receivedMessage) {
+    /// <summary>Processes messages in the achievements channel after being received by the handler for thread creation.</summary>
+    /// <param name="receivedMessage">The message received in the achievements channel</param>
+    public static async Task ProcessAchievementsChannelMessage(SocketUserMessage receivedMessage) {
         await Task.Delay(500);
         ITextChannel channel = (ITextChannel)(await HBData.DiscordClient.GetChannelAsync(HBData.AchievementsChannelID));
         IMessage message = await channel.GetMessageAsync(receivedMessage.Id);

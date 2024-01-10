@@ -2,6 +2,9 @@
 
 public static class HypixelMethods {
 
+    /// <summary>Makes a player request to the Hypixel API. The cache may be used if the same player was requested less than 10 minutes ago.</summary>
+    /// <param name="username">The username of the player whose data to request</param>
+    /// <returns>The player JSON response.</returns>
     public static async Task<Json> RetrievePlayerAPI(string username) {
         username = username.ToLower();
         if (HBData.PlayerCache.ContainsKey(username) && DateTime.Now.Ticks - HBData.PlayerCache[username].Timestamp < 600L * 10000000L) {
@@ -21,6 +24,11 @@ public static class HypixelMethods {
         }
     }
 
+    /// <summary>Makes a request to specified endpoint the Hypixel API with a timeout of 10 seconds.</summary>
+    /// <param name="endpoint">The endpoint to contact</param>
+    /// <param name="parameter">The parameter of the request</param>
+    /// <param name="argument">The argument to the parameter of the request</param>
+    /// <returns>The JSON response.</returns>
     public static async Task<Json?> RequestWithTimeout(string endpoint, string parameter, string argument) {
         Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync("https://api.hypixel.net/" + endpoint + "?key=" + HBData.HypixelKey + "&" + parameter + "=" + argument);
         Task waitTimerTask = Task.Delay(10000);
@@ -33,6 +41,7 @@ public static class HypixelMethods {
         return formatted;
     }
 
+    /// <summary>Removes entries older than 10 minutes from <see cref="HBData.PlayerCache"/>.</summary>
     public static void CleanPlayerCache() {
         if (HBData.PlayerCache.Count == 0)
             return;
@@ -45,6 +54,8 @@ public static class HypixelMethods {
             HBData.PlayerCache.Remove(username);
     }
 
+    /// <param name="username">The username to check</param>
+    /// <returns>True if the provided username is a possible Minecraft username, otherwise false.</returns>
     public static bool IsValidUsername(string username) {
         if (username == null || username.Length == 0 || username.Length > 16)
             return false;
@@ -135,6 +146,9 @@ public static class HypixelMethods {
         }
     }
 
+    /// <summary>Formats the provided integer string with commas. This method assumes that there are no commas and that the string is a clean integer.</summary>
+    /// <param name="old">The clean integer string to format</param>
+    /// <returns>The number formatted with commas.</returns>
     public static string WithCommas(string old) {
         string formatted = "";
         int digit = 0;
@@ -147,12 +161,18 @@ public static class HypixelMethods {
         return formatted;
     }
 
+    /// <summary>Formats the provided integer with commas.</summary>
+    /// <param name="value">The integer to format</param>
+    /// <returns>The number formatted with commas.</returns>
     public static string WithCommas(int value) {
         if (value < 1000)
             return value.ToString();
         return WithCommas(value.ToString());
     }
 
+    /// <summary>Formats the provided double with commas.</summary>
+    /// <param name="value">The double to format</param>
+    /// <returns>The number formatted with commas.</returns>
     public static string WithCommas(double value) {
         if (value < 1000)
             return value.ToString();
@@ -164,6 +184,9 @@ public static class HypixelMethods {
             return WithCommas(old);
     }
 
+    /// <summary>Formats the provided numerical string to contain at least two digits after the decimal point. It may contain commas.</summary>
+    /// <param name="formattedDouble">The numerical string to format</param>
+    /// <returns>The number formatted to contain at least two digits after the decimal point.</returns>
     public static string PadDecimalPlaces(string formattedDouble) {
         if (!formattedDouble.Contains("."))
             return formattedDouble + ".00";

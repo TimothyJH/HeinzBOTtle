@@ -5,6 +5,9 @@ using HeinzBOTtle.Leaderboards;
 
 namespace HeinzBOTtle.Commands;
 
+/// <summary>
+/// Represents /stalk.
+/// </summary>
 public class HBCommandStalk : HBCommand {
 
     public HBCommandStalk() : base("stalk") { }

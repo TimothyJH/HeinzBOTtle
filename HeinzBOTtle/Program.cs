@@ -106,7 +106,7 @@ internal class Program {
 
     private Task DMessageReceivedEventAsync(SocketMessage message) {
         if (message.Channel.Id == HBData.AchievementsChannelID && message is SocketUserMessage)
-            _ = AchievementThreadsMethods.ProcessAchievementChannelMessage((SocketUserMessage)message);
+            _ = AchievementThreadsMethods.ProcessAchievementsChannelMessage((SocketUserMessage)message);
         return Task.CompletedTask;
     }
 

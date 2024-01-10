@@ -4,6 +4,9 @@ using HeinzBOTtle.Leaderboards;
 
 namespace HeinzBOTtle.Commands;
 
+/// <summary>
+/// Represents /update-leaderboards.
+/// </summary>
 public class HBCommandUpdateLeaderboards : HBCommand {
 
     public HBCommandUpdateLeaderboards() : base("update-leaderboards") { }

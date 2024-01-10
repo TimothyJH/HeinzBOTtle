@@ -11,27 +11,43 @@ namespace HeinzBOTtle;
 public static class HBData {
 
     // Clients
+    /// <summary>The client dealing with interactions between this process and Discord.</summary>
     public static DiscordSocketClient DiscordClient { get; } = new DiscordSocketClient();
+    /// <summary>The client dealing with interactions between this process and the Hypixel API.</summary>
     public static HttpClient HttpClient { get; } = new HttpClient();
     
     // Config
+    /// <summary>The secret key used to make requests to the Hypixel API.</summary>
     public static string HypixelKey { get; set; } = "";
+    /// <summary>The secret token used to authenticate and control the Discord bot.</summary>
     public static string DiscordToken { get; set; } = "";
+    /// <summary>The database document ID used to retrieve Hypixel guild information with the Hypixel API.</summary>
     public static string HypixelGuildID { get; set; } = "";
+    /// <summary>The ID of the Discord guild within which the bot operates.</summary>
     public static ulong DiscordGuildID { get; set; } = 0;
+    /// <summary>The ID of the Discord text channel dedicated to hosting the leaderboards.</summary>
     public static ulong LeaderboardsChannelID { get; set; } = 0;
+    /// <summary>The ID of the Discord text channel dedicated to hosting player achievements.</summary>
     public static ulong AchievementsChannelID { get; set; } = 0;
 
     // Assets
+    /// <summary>The list of active Discord slash command implementers.</summary>
     public static List<HBCommand> HBCommandList { get; } = GenerateHBCommandList();
+    /// <summary>The list of active guild requirements.</summary>
     public static List<Requirement> RequirementList { get; } = GenerateRequirementList();
+    /// <summary>The list of active guild leaderboards.</summary>
     public static List<Leaderboard> LeaderboardList { get; } = GenerateLeaderboardList();
 
     // Other
+    /// <summary>The cache of player requests to the Hypixel API.</summary>
     public static Dictionary<string, CachedPlayerInfo> PlayerCache { get; } = new Dictionary<string, CachedPlayerInfo>();
+    /// <summary>The cache of leaderboard rankings where a player's username (normalized to lowercase) is mapped to the player's ranking information.</summary>
     public static Dictionary<string, LBRankingData> LeaderboardRankings { get; } = new Dictionary<string, LBRankingData>();
+    /// <summary>Used for populating the Guild Quest Challenges Completed leaderboard and will likely be removed in the future.</summary>
     public static Dictionary<string, int> QuestParticipationsLeaderboardMap { get; } = new Dictionary<string, int>();
+    /// <summary>A flag indicating whether a leaderboard update is in progress. Behaves like a mutex.</summary>
     public static bool LeaderboardsUpdating { get; set; } = false;
+    /// <summary>Timestamp indicating when the last leaderboard update began.</summary>
     public static long LeaderboardsLastUpdated { get; set; } = 0;
 
     // Asset Generators
