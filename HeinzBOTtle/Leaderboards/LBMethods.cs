@@ -58,7 +58,7 @@ public static class LBMethods {
         WipeLeaderboards();
 
         // Requesting and processing guild information:
-        Json? guild = await HypixelMethods.RequestWithTimeout("guild", "id", HBData.HypixelGuildID);
+        Json? guild = await HypixelMethods.RetrieveGuildAPI(HBData.HypixelGuildID);
         Task initialBuffer = Task.Delay(1000);
         if (guild == null || guild.GetBoolean("success") == false) {
             Console.WriteLine("ERROR: Guild information retrieval unsuccessful :(");
@@ -108,8 +108,8 @@ public static class LBMethods {
         // Requesting player data and populating leaderboards:
         await initialBuffer;
         foreach (string uuid in uuids) {
-            Json? json = await HypixelMethods.RequestWithTimeout("player", "uuid", uuid);
             Task buffer = Task.Delay(1000);
+            Json? json = await HypixelMethods.RetrievePlayerAPI(uuid, uuid: true);
             if (json == null || json.GetBoolean("success") == false || json.GetValueKind("player") != JsonValueKind.Object)
                 Console.WriteLine("Ignoring player " + uuid + " in leaderboards update");
             else {

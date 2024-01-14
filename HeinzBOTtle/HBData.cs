@@ -39,8 +39,8 @@ public static class HBData {
     public static List<Leaderboard> LeaderboardList { get; } = GenerateLeaderboardList();
 
     // Other
-    /// <summary>The cache of player requests to the Hypixel API.</summary>
-    public static Dictionary<string, CachedPlayerInfo> PlayerCache { get; } = new Dictionary<string, CachedPlayerInfo>();
+    /// <summary>The cache of requests to the Hypixel API.</summary>
+    public static Dictionary<string, CachedInfo> APICache { get; } = new Dictionary<string, CachedInfo>();
     /// <summary>The cache of leaderboard rankings where a player's username (normalized to lowercase) is mapped to the player's ranking information.</summary>
     public static Dictionary<string, LBRankingData> LeaderboardRankings { get; } = new Dictionary<string, LBRankingData>();
     /// <summary>Used for populating the Guild Quest Challenges Completed leaderboard and will likely be removed in the future.</summary>
@@ -53,6 +53,7 @@ public static class HBData {
     // Asset Generators
     private static List<HBCommand> GenerateHBCommandList() {
         List<HBCommand> list = new List<HBCommand>() {
+            new HBCommandPromotions(),
             new HBCommandReqs(),
             new HBCommandStalk(),
             new HBCommandUpdateLeaderboards()

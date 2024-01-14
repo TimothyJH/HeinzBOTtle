@@ -75,7 +75,7 @@ internal class Program {
     private Task DLogEvent(LogMessage msg) {
         Console.WriteLine(msg.ToString());
         if (msg.ToString().Trim().EndsWith("Disconnecting"))
-            HypixelMethods.CleanPlayerCache();
+            HypixelMethods.CleanCache();
         return Task.CompletedTask;
     }
 
@@ -118,18 +118,18 @@ internal class Program {
                 continue;
             switch (command) {
                 case "help":
-                    Console.WriteLine("=> shutdown\n=> update-commands\n=> display-player-cache\n=> clean-player-cache\n=> get-rankings");
+                    Console.WriteLine("=> shutdown\n=> update-commands\n=> display-cache\n=> clean-cache\n=> get-rankings");
                     break;
                 case "shutdown":
                     return;
                 case "update-commands":
                     await UpdateCommandsAsync();
                     break;
-                case "display-player-cache":
-                    DisplayPlayerCache();
+                case "display-cache":
+                    DisplayCache();
                     break;
-                case "clean-player-cache":
-                    HypixelMethods.CleanPlayerCache();
+                case "clean-cache":
+                    HypixelMethods.CleanCache();
                     break;
                 case "get-rankings":
                     Console.WriteLine("Starting rankings retrieval...");
@@ -177,14 +177,14 @@ internal class Program {
         Console.WriteLine("Done!");
     }
 
-    private static void DisplayPlayerCache() {
+    private static void DisplayCache() {
         Console.WriteLine("Current Timestamp: " + DateTime.Now.Ticks);
-        if (HBData.PlayerCache.Count == 0) {
+        if (HBData.APICache.Count == 0) {
             Console.WriteLine("The cache is empty.");
             return;
         }
-        foreach (string username in HBData.PlayerCache.Keys)
-            Console.WriteLine(username + " - " + HBData.PlayerCache[username].Timestamp);
+        foreach (string username in HBData.APICache.Keys)
+            Console.WriteLine(username + " - " + HBData.APICache[username].Timestamp);
     }
 
 }

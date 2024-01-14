@@ -3,23 +3,47 @@
 public static class HypixelMethods {
 
     /// <summary>Makes a player request to the Hypixel API. The cache may be used if the same player was requested less than 10 minutes ago.</summary>
-    /// <param name="username">The username of the player whose data to request</param>
+    /// <param name="identifier">The username or UUID of the player whose data to request</param>
+    /// <param name="uuid">True if the identifier is a UUID, false if it is a username</param>
     /// <returns>The player JSON response.</returns>
-    public static async Task<Json> RetrievePlayerAPI(string username) {
-        username = username.ToLower();
-        if (HBData.PlayerCache.ContainsKey(username) && DateTime.Now.Ticks - HBData.PlayerCache[username].Timestamp < 600L * 10000000L) {
+    public static async Task<Json> RetrievePlayerAPI(string identifier, bool uuid = false) {
+        identifier = identifier.ToLower();
+        if (HBData.APICache.ContainsKey(identifier) && DateTime.Now.Ticks - HBData.APICache[identifier].Timestamp < 600L * 10000000L) {
             // This is the case where the API is being polled when we already have a recent enough copy.
-            return HBData.PlayerCache[username].JsonResponse;
+            Console.WriteLine("API cache hit for player: " + identifier);
+            return HBData.APICache[identifier].JsonResponse;
         } else {
-            Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync("https://api.hypixel.net/player?key=" + HBData.HypixelKey + "&name=" + username);
+            Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync($"https://api.hypixel.net/player?key={HBData.HypixelKey}&{(uuid ? "uuid" : "name")}={identifier}");
             Task waitTimerTask = Task.Delay(10000);
-            Console.WriteLine("Made API request for player: " + username);
+            Console.WriteLine("Made API request for player: " + identifier);
             Task.WaitAny(responseTask, waitTimerTask);
             if (!responseTask.IsCompleted)
                 return new Json("{\"success\": false}");
             string json = await responseTask.Result.Content.ReadAsStringAsync();
             Json formatted = new Json(json);
-            HBData.PlayerCache[username] = new CachedPlayerInfo(DateTime.Now.Ticks, formatted);
+            HBData.APICache[identifier] = new CachedInfo(DateTime.Now.Ticks, formatted);
+            return formatted;
+        }
+    }
+
+    /// <summary>Makes a guild request to the Hypixel API. The cache may be used if the same guild was requested less than 10 minutes ago.</summary>
+    /// <param name="guildID">The database ID of the guild whose data to request</param>
+    /// <returns>The guild JSON response.</returns>
+    public static async Task<Json> RetrieveGuildAPI(string guildID) {
+        if (HBData.APICache.ContainsKey(guildID) && DateTime.Now.Ticks - HBData.APICache[guildID].Timestamp < 600L * 10000000L) {
+            // This is the case where the API is being polled when we already have a recent enough copy.
+            Console.WriteLine("API cache hit for guild: " + guildID);
+            return HBData.APICache[guildID].JsonResponse;
+        } else {
+            Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync($"https://api.hypixel.net/guild?key={HBData.HypixelKey}&id={guildID}");
+            Task waitTimerTask = Task.Delay(10000);
+            Console.WriteLine("Made API request for guild: " + guildID);
+            Task.WaitAny(responseTask, waitTimerTask);
+            if (!responseTask.IsCompleted)
+                return new Json("{\"success\": false}");
+            string json = await responseTask.Result.Content.ReadAsStringAsync();
+            Json formatted = new Json(json);
+            HBData.APICache[guildID] = new CachedInfo(DateTime.Now.Ticks, formatted);
             return formatted;
         }
     }
@@ -41,17 +65,17 @@ public static class HypixelMethods {
         return formatted;
     }
 
-    /// <summary>Removes entries older than 10 minutes from <see cref="HBData.PlayerCache"/>.</summary>
-    public static void CleanPlayerCache() {
-        if (HBData.PlayerCache.Count == 0)
+    /// <summary>Removes entries older than 10 minutes from <see cref="HBData.APICache"/>.</summary>
+    public static void CleanCache() {
+        if (HBData.APICache.Count == 0)
             return;
         List<string> oldEntries = new List<string>();
-        foreach (string username in HBData.PlayerCache.Keys) {
-            if (DateTime.Now.Ticks - HBData.PlayerCache[username].Timestamp > 600L * 10000000L)
-                oldEntries.Add(username);
+        foreach (string key in HBData.APICache.Keys) {
+            if (DateTime.Now.Ticks - HBData.APICache[key].Timestamp > 600L * 10000000L)
+                oldEntries.Add(key);
         }
         foreach (string username in oldEntries)
-            HBData.PlayerCache.Remove(username);
+            HBData.APICache.Remove(username);
     }
 
     /// <param name="username">The username to check</param>
@@ -188,11 +212,20 @@ public static class HypixelMethods {
     /// <param name="formattedDouble">The numerical string to format</param>
     /// <returns>The number formatted to contain at least two digits after the decimal point.</returns>
     public static string PadDecimalPlaces(string formattedDouble) {
-        if (!formattedDouble.Contains("."))
+        if (!formattedDouble.Contains('.'))
             return formattedDouble + ".00";
         string[] split = formattedDouble.Split(".", 2);
         if (split[1].Length == 1)
             return formattedDouble + "0";
+        return formattedDouble;
+    }
+
+    /// <summary>Formats the provided numerical string to contain at least one digit after the decimal point. It may contain commas.</summary>
+    /// <param name="formattedDouble">The numerical string to format</param>
+    /// <returns>The number formatted to contain at least one digit after the decimal point.</returns>
+    public static string PadOneDecimalPlace(string formattedDouble) {
+        if (!formattedDouble.Contains('.'))
+            return formattedDouble + ".0";
         return formattedDouble;
     }
 
