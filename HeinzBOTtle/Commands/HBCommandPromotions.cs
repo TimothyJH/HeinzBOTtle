@@ -68,42 +68,65 @@ public class HBCommandPromotions : HBCommand {
         // Evaluating each player:
         await initialBuffer;
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        List<(string, Rank)> promoteNow = new List<(string, Rank)>(); // string --> username, Rank --> rank to which the player should be promoted right now
-        List<(string, Rank, double)> promoteSoon = new List<(string, Rank, double)>(); // string --> username, Rank --> rank to which the player should be promoted later
-                                                                                       // double --> how much later (in days)
+        // For next three: string --> Markdown-adjusted username, Rank --> rank to which the player should be promoted now/very soon/soon
+        List<(string, Rank)> promoteNow = new List<(string, Rank)>();
+        List<(string, Rank, DateTimeOffset)> promoteVerySoon = new List<(string, Rank, DateTimeOffset)>(); // DateTimeOffset --> when (exact)
+        List<(string, Rank, double)> promoteSoon = new List<(string, Rank, double)>(); // double --> how much later (in days)
+
         foreach ((string, Rank, long) playerInfo in candidates) { // string --> uuid, Rank --> rank, long --> joined
             Task buffer = Task.Delay(1000);
             Json? json = await HypixelMethods.RetrievePlayerAPI(playerInfo.Item1, uuid: true);
             if (json == null || json.GetBoolean("success") == false || json.GetValueKind("player") != JsonValueKind.Object)
-                Console.WriteLine("Ignoring player " + playerInfo.Item1 + " in promotions evaluation");
+                Console.WriteLine($"Ignoring player {playerInfo.Item1} in promotions evaluation");
             else {
-                (double, Rank)? distance = RankMethods.CalculateDaysUntilPromotion(json, RankMethods.DaysSinceTimestamp(playerInfo.Item3, now), playerInfo.Item2);
+                TimeSpan? timeInGuild = RankMethods.TimeSinceTimestamp(playerInfo.Item3, now);
+                if (timeInGuild == null) {
+                    Console.WriteLine($"Nonsensical join date for player {playerInfo.Item1}, skipping...");
+                    await buffer;
+                    continue;
+                }
+                (TimeSpan, Rank)? distance = RankMethods.CalculateTimeUntilPromotion(json, (TimeSpan)timeInGuild, playerInfo.Item2);
                 if (distance == null) {
                     await buffer;
                     continue;
                 }
-                if (distance.Value.Item1 <= 0.0) {
+                if (distance.Value.Item1 <= TimeSpan.Zero) {
                     promoteNow.Add(((json.GetString("player.displayname") ?? "?????").Replace("_", "\\_"), distance.Value.Item2));
                     // This performs an additional future check in case this player is extremely overdue for the current promotion and will qualify for the next rank soon.
-                    distance = RankMethods.CalculateDaysUntilPromotion(json, RankMethods.DaysSinceTimestamp(playerInfo.Item3, now), distance.Value.Item2); 
+                    distance = RankMethods.CalculateTimeUntilPromotion(json, (TimeSpan)timeInGuild, distance.Value.Item2);
                 }
-                if (distance != null && distance.Value.Item1 <= 30.0)
-                    promoteSoon.Add((json.GetString("player.displayname") ?? "?????", distance.Value.Item2, distance.Value.Item1));
+                if (distance != null && distance.Value.Item1.TotalDays <= 30.0) {
+                    if (distance.Value.Item1.TotalDays <= 7.0)
+                        promoteVerySoon.Add(((json.GetString("player.displayname") ?? "?????").Replace("_", "\\_"), distance.Value.Item2, now + distance.Value.Item1));
+                    else
+                        promoteSoon.Add(((json.GetString("player.displayname") ?? "?????").Replace("_", "\\_"), distance.Value.Item2, distance.Value.Item1.TotalDays));
+                }
             }
             await buffer;
         }
+
+        promoteVerySoon.Sort(delegate ((string, Rank, DateTimeOffset) a, (string, Rank, DateTimeOffset) b) {
+            return a.Item3.CompareTo(b.Item3);
+        });
+        promoteSoon.Sort(delegate ((string, Rank, double) a, (string, Rank, double) b) {
+            return a.Item3.CompareTo(b.Item3);
+        });
 
         // Displaying the results:
         EmbedBuilder results = new EmbedBuilder();
         results.WithTitle("Promotions Evaluation");
         results.WithTimestamp(now);
-        if (promoteNow.Count == 0 && promoteSoon.Count == 0) {
+        if (promoteNow.Count == 0 && promoteVerySoon.Count == 0 && promoteSoon.Count == 0) {
             results.WithDescription("There are no current promotions or guaranteed upcoming promotions scheduled within the next 30 days.");
             results.WithColor(Color.Green);
         } else {
             string description = "";
             foreach ((string, Rank) result in promoteNow)
                 description += $":star: **{result.Item1}** can be promoted to **{result.Item2}**!\n\n";
+            foreach ((string, Rank, DateTimeOffset) result in promoteVerySoon) {
+                long ts = result.Item3.ToUnixTimeSeconds();
+                description += $":warning: **{result.Item1}** will qualify for **{result.Item2}** on <t:{ts}:D> at <t:{ts}:t>.\n\n";
+            }
             foreach ((string, Rank, double) result in promoteSoon)
                 description += $":warning: **{result.Item1}** will qualify for **{result.Item2}** in " +
                     $"{HypixelMethods.PadOneDecimalPlace(double.Round(result.Item3, 1, MidpointRounding.ToPositiveInfinity).ToString())} days.\n\n";
