@@ -15,18 +15,6 @@ public static class LBMethods {
             leaderboard.Reset();
     }
 
-    /// <summary>If the provided integer does not fall between 0 and 999 inclusive, this method will not function as specified.</summary>
-    /// <param name="number">An integer between 0 and 999 inclusive</param>
-    /// <returns>The provided integer formatted to exactly three characters.</returns>
-    public static string FormatPosition(int number) {
-        if (number < 10)
-            return "00" + number;
-        else if (number > 9 && number < 100)
-            return "0" + number;
-        else
-            return number.ToString();
-    }
-
     /// <summary>Removes the last 100 messages in the provided Discord text channel. This is to be used to clear the channel associated with the leaderboards.</summary>
     /// <param name="channel">The channel to wipe</param>
     public static async Task WipeLeaderboardsChannel(SocketTextChannel channel) {
@@ -51,7 +39,6 @@ public static class LBMethods {
     /// <summary>Updates the leaderboards. This task covers everything necessary after the successful execution of the command to update the leaderboards.</summary>
     public static async Task UpdateLeaderboards() {
         // Performing some setup:
-        HBData.LeaderboardsUpdating = true;
         HBData.LeaderboardRankings.Clear();
         HBData.QuestParticipationsLeaderboardMap.Clear();
         SocketTextChannel lbChannel = (SocketTextChannel)HBData.DiscordClient.GetChannel(HBData.LeaderboardsChannelID);
@@ -61,14 +48,12 @@ public static class LBMethods {
         Json? guild = await HypixelMethods.RetrieveGuildAPI(HBData.HypixelGuildID);
         Task initialBuffer = Task.Delay(1000);
         if (guild == null || guild.GetBoolean("success") == false) {
-            Console.WriteLine("ERROR: Guild information retrieval unsuccessful :(");
-            HBData.LeaderboardsUpdating = false;
+            await HBData.Log.InfoAsync("ERROR: Guild information retrieval unsuccessful :(");
             return;
         }
         List<JsonElement>? members = guild.GetArray("guild.members");
         if (members == null || members.Count == 0) {
-            Console.WriteLine("ERROR: Guild member list retrieval unsuccessful :(");
-            HBData.LeaderboardsUpdating = false;
+            await HBData.Log.InfoAsync("ERROR: Guild member list retrieval unsuccessful :(");
             return;
         }
 
@@ -98,8 +83,6 @@ public static class LBMethods {
                 int questParticipationsInt = (int)questParticipations.GetDouble();
                 HBData.QuestParticipationsLeaderboardMap.Add(uuidString, questParticipationsInt);
             }
-            
-            
         }
 
         // Starting to wipe old leaderboards:
@@ -111,7 +94,7 @@ public static class LBMethods {
             Task buffer = Task.Delay(1000);
             Json? json = await HypixelMethods.RetrievePlayerAPI(uuid, uuid: true);
             if (json == null || json.GetBoolean("success") == false || json.GetValueKind("player") != JsonValueKind.Object)
-                Console.WriteLine("Ignoring player " + uuid + " in leaderboards update");
+                await HBData.Log.InfoAsync("Ignoring player " + uuid + " in leaderboards update");
             else {
                 HBData.LeaderboardRankings.Add((json.GetString("player.displayname") ?? "?????").ToLower(), new LBRankingData(json));
                 foreach (Leaderboard leaderboard in HBData.LeaderboardList) {
@@ -182,7 +165,6 @@ public static class LBMethods {
         EmbedBuilder done = new EmbedBuilder();
         done.WithDescription("Please note that the leaderboards system is new and may contain errors.\n\nThe leaderboards are finished updating.").WithColor(Color.Green).WithCurrentTimestamp();
         await lbChannel.SendMessageAsync(embed: done.Build());
-        HBData.LeaderboardsUpdating = false;
     }
 
     /// <summary>Updates the rankings in <see cref="HBData.LeaderboardRankings"/> for all leaderboards.</summary>

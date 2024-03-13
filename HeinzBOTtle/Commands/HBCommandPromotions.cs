@@ -34,7 +34,7 @@ public class HBCommandPromotions : HBCommand {
             await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
                 p.Embed = failMemberList.Build();
             });
-            Console.WriteLine("ERROR: Guild member list retrieval unsuccessful :(");
+            await HBData.Log.InfoAsync("ERROR: Guild member list retrieval unsuccessful :(");
             return;
         }
 
@@ -77,11 +77,11 @@ public class HBCommandPromotions : HBCommand {
             Task buffer = Task.Delay(1000);
             Json? json = await HypixelMethods.RetrievePlayerAPI(playerInfo.Item1, uuid: true);
             if (json == null || json.GetBoolean("success") == false || json.GetValueKind("player") != JsonValueKind.Object)
-                Console.WriteLine($"Ignoring player {playerInfo.Item1} in promotions evaluation");
+                await HBData.Log.InfoAsync($"Ignoring player {playerInfo.Item1} in promotions evaluation");
             else {
                 TimeSpan? timeInGuild = RankMethods.TimeSinceTimestamp(playerInfo.Item3, now);
                 if (timeInGuild == null) {
-                    Console.WriteLine($"Nonsensical join date for player {playerInfo.Item1}, skipping...");
+                    await HBData.Log.InfoAsync($"Nonsensical join date for player {playerInfo.Item1}, skipping...");
                     await buffer;
                     continue;
                 }

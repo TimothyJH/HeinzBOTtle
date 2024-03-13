@@ -63,12 +63,11 @@ public abstract class Leaderboard {
 
             PlayerEntry entry = board[i];
             if (entry.Stat != tiebreakerValue) {
-                currentDescription += "`#" + LBMethods.FormatPosition(i + 1) + ":` " + entry.Username.Replace("_", "\\_") + " (" + GenerateDisplayStat(entry) + ")\n";
+                currentDescription += $"`#{(i + 1):D3}:` {entry.Username.Replace("_", "\\_")} ({GenerateDisplayStat(entry)})\n";
                 tiebreakerValue = entry.Stat;
                 tiebreakerIndex = i;
             } else
-                currentDescription += "`#" + LBMethods.FormatPosition(tiebreakerIndex + 1) + ":` " + entry.Username.Replace("_", "\\_") + " (" + GenerateDisplayStat(entry) + ")\n";
-            
+                currentDescription += $"`#{(tiebreakerIndex + 1):D3}:` {entry.Username.Replace("_", "\\_")} ({GenerateDisplayStat(entry)})\n";            
             if ((i + 1) % 25 == 0) {
                 current.WithDescription(currentDescription.TrimEnd());
                 embeds.Add(current.Build());

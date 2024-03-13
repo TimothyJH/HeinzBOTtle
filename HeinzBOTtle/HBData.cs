@@ -39,14 +39,16 @@ public static class HBData {
     public static List<Leaderboard> LeaderboardList { get; } = GenerateLeaderboardList();
 
     // Other
+    /// <summary>The logging interface for all displayed messages.</summary>
+    public static HBLog Log { get; } = new HBLog("log.txt");
     /// <summary>The cache of requests to the Hypixel API.</summary>
     public static Dictionary<string, CachedInfo> APICache { get; } = new Dictionary<string, CachedInfo>();
     /// <summary>The cache of leaderboard rankings where a player's username (normalized to lowercase) is mapped to the player's ranking information.</summary>
     public static Dictionary<string, LBRankingData> LeaderboardRankings { get; } = new Dictionary<string, LBRankingData>();
     /// <summary>Used for populating the Guild Quest Challenges Completed leaderboard and will likely be removed in the future.</summary>
     public static Dictionary<string, int> QuestParticipationsLeaderboardMap { get; } = new Dictionary<string, int>();
-    /// <summary>A flag indicating whether a leaderboard update is in progress. Behaves like a mutex.</summary>
-    public static bool LeaderboardsUpdating { get; set; } = false;
+    /// <summary>A semaphore indicating whether a leaderboard update is in progress.</summary>
+    public static Semaphore LeaderboardsUpdating { get; set; } = new Semaphore(1, 1);
     /// <summary>Timestamp indicating when the last leaderboard update began.</summary>
     public static long LeaderboardsLastUpdated { get; set; } = 0;
 

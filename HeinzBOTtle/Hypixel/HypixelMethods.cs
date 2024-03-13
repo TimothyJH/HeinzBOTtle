@@ -10,12 +10,12 @@ public static class HypixelMethods {
         identifier = identifier.ToLower();
         if (HBData.APICache.ContainsKey(identifier) && DateTime.Now.Ticks - HBData.APICache[identifier].Timestamp < 600L * 10000000L) {
             // This is the case where the API is being polled when we already have a recent enough copy.
-            Console.WriteLine("API cache hit for player: " + identifier);
+            await HBData.Log.InfoAsync("API cache hit for player: " + identifier);
             return HBData.APICache[identifier].JsonResponse;
         } else {
             Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync($"https://api.hypixel.net/player?key={HBData.HypixelKey}&{(uuid ? "uuid" : "name")}={identifier}");
             Task waitTimerTask = Task.Delay(10000);
-            Console.WriteLine("Made API request for player: " + identifier);
+            await HBData.Log.InfoAsync("Made API request for player: " + identifier);
             Task.WaitAny(responseTask, waitTimerTask);
             if (!responseTask.IsCompleted)
                 return new Json("{\"success\": false}");
@@ -32,12 +32,12 @@ public static class HypixelMethods {
     public static async Task<Json> RetrieveGuildAPI(string guildID) {
         if (HBData.APICache.ContainsKey(guildID) && DateTime.Now.Ticks - HBData.APICache[guildID].Timestamp < 600L * 10000000L) {
             // This is the case where the API is being polled when we already have a recent enough copy.
-            Console.WriteLine("API cache hit for guild: " + guildID);
+            await HBData.Log.InfoAsync("API cache hit for guild: " + guildID);
             return HBData.APICache[guildID].JsonResponse;
         } else {
             Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync($"https://api.hypixel.net/guild?key={HBData.HypixelKey}&id={guildID}");
             Task waitTimerTask = Task.Delay(10000);
-            Console.WriteLine("Made API request for guild: " + guildID);
+            await HBData.Log.InfoAsync("Made API request for guild: " + guildID);
             Task.WaitAny(responseTask, waitTimerTask);
             if (!responseTask.IsCompleted)
                 return new Json("{\"success\": false}");
@@ -56,7 +56,7 @@ public static class HypixelMethods {
     public static async Task<Json?> RequestWithTimeout(string endpoint, string parameter, string argument) {
         Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync("https://api.hypixel.net/" + endpoint + "?key=" + HBData.HypixelKey + "&" + parameter + "=" + argument);
         Task waitTimerTask = Task.Delay(10000);
-        Console.WriteLine($"Made API request at '{endpoint}' where '{parameter}' = '{argument}'");
+        await HBData.Log.InfoAsync($"Made API request at '{endpoint}' where '{parameter}' = '{argument}'");
         Task.WaitAny(responseTask, waitTimerTask);
         if (!responseTask.IsCompleted)
             return null;

@@ -15,9 +15,9 @@ public static class AchievementThreadsMethods {
             return;
         try {
             await channel.CreateThreadAsync($"{message.Author.Username}'s Achievement", message: message);
-            Console.WriteLine($"Created achievement thread for user: {message.Author.Username}");
+            await HBData.Log.InfoAsync($"Created achievement thread for user: {message.Author.Username}");
         } catch {
-            Console.WriteLine($"Unable to create achievement thread for user: {message.Author.Username}");
+            await HBData.Log.InfoAsync($"Unable to create achievement thread for user: {message.Author.Username}");
         }
     }
 

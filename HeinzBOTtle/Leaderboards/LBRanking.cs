@@ -20,7 +20,7 @@ public class LBRanking {
 
     /// <returns>A phrase summarizing this ranking.</returns>
     public override string ToString() {
-        return $"`#{LBMethods.FormatPosition(Position)}` in {GameTitle}" + (GameStat.Equals("") ? "" : $" ({GameStat})");
+        return $"`#{Position:D3}` in {GameTitle}" + (GameStat.Equals("") ? "" : $" ({GameStat})");
     }
 
     public static bool operator <(LBRanking a, LBRanking b) => a.Position < b.Position;

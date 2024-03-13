@@ -14,7 +14,7 @@ public class HBCommandStalk : HBCommand {
 
     public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         await command.DeferAsync();
-        if (HBData.LeaderboardsUpdating) {
+        if (!HBData.LeaderboardsUpdating.WaitOne(100)) {
             EmbedBuilder fail = new EmbedBuilder();
             fail.WithDescription("This command cannot be used while the leaderboards are updating.");
             fail.WithColor(Color.Gold);
@@ -23,6 +23,7 @@ public class HBCommandStalk : HBCommand {
             });
             return;
         }
+        HBData.LeaderboardsUpdating.Release();
         if (HBData.LeaderboardRankings.Count == 0) {
             EmbedBuilder fail = new EmbedBuilder();
             fail.WithDescription("The leaderboards have not been updated since the bot was last restarted, so the rankings are not currently stored in memory. " +

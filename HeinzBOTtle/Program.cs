@@ -9,7 +9,7 @@ namespace HeinzBOTtle;
 
 internal class Program {
 
-    private bool IsReady { get; set; } = false;
+    private Semaphore ReadySignal { get; set; } = new Semaphore(0, 1);
 
     private static Task Main() => new Program().MainAsync();
 
@@ -18,11 +18,11 @@ internal class Program {
         try {
             json = new Json(File.ReadAllText("variables.json"));
         } catch (Exception e) {
-            Console.WriteLine("Unable to properly access variables file: " + e.Message);
+            HBData.Log.Info("Unable to properly access variables file: " + e.Message);
             return false;
         }
         if (json.IsEmpty()) {
-            Console.WriteLine("Invalid variables.json file!");
+            HBData.Log.Info("Invalid variables.json file!");
             return false;
         }
 
@@ -34,7 +34,7 @@ internal class Program {
         string? rawAchievementsChannelID = json.GetString("AchievementsChannelID");
         if (rawHypixelKey == null || rawDiscordToken == null || rawHypixelGuildID == null || rawDiscordGuildID == null
             || rawLeaderboardsChannelID == null || rawAchievementsChannelID == null) {
-            Console.WriteLine("Invalid variables.json file!");
+            HBData.Log.Info("Invalid variables.json file!");
             return false;
         }
         HBData.HypixelKey = rawHypixelKey;
@@ -47,8 +47,14 @@ internal class Program {
     }
 
     private async Task MainAsync() {
+        // Verifying log status:
+        if (!HBData.Log.SuccessfulSetup) {
+            Console.WriteLine("There was an issue when trying to create the log file; program will terminate.");
+            return;
+        }
+
         // Loading config:
-        Console.WriteLine("Running in: " + Directory.GetCurrentDirectory().ToString());
+        await HBData.Log.InfoAsync("Running in: " + Directory.GetCurrentDirectory().ToString());
         if (!LoadFileVariables())
             return;
 
@@ -60,20 +66,24 @@ internal class Program {
 
         // Waiting for the Discord client to be ready:
         while (true) {
-            await Task.Delay(250);
-            if (IsReady)
+            if (ReadySignal.WaitOne(30000))
                 break;
+            await HBData.Log.InfoAsync("The Discord client is taking quite a long time to get ready; perhaps something is wrong?");
         }
+        ReadySignal.Release();
 
         // Running the console client:
         await ConsoleClientAsync();
 
         // Stopping the program:
         await HBData.DiscordClient.StopAsync();
+        HBData.Log.Dispose();
     }
 
     private Task DLogEvent(LogMessage msg) {
-        Console.WriteLine(msg.ToString());
+        HBData.Log.WriteLineToLog(msg.Message, "Discord.Net", DateTime.Now);
+        if (msg.Exception != null)
+            HBData.Log.WriteLineToLog(msg.Exception.ToString(), "Discord.Net", DateTime.Now);
         if (msg.ToString().Trim().EndsWith("Disconnecting"))
             HypixelMethods.CleanCache();
         return Task.CompletedTask;
@@ -81,13 +91,13 @@ internal class Program {
 
     private Task DReadyEvent() {
         HBData.DiscordClient.SlashCommandExecuted += DSlashCommandExecutedEventAsync;
-        HBData.DiscordClient.MessageReceived += DMessageReceivedEventAsync;
-        IsReady = true;
+        HBData.DiscordClient.MessageReceived += DMessageReceivedEvent;
+        ReadySignal.Release();
         return Task.CompletedTask;
     }
 
     private async Task DSlashCommandExecutedEventAsync(SocketSlashCommand command) {
-        Console.WriteLine($"Command executed: /{command.Data.Name} by {command.User.Username} in #{command.Channel.Name}");
+        await HBData.Log.InfoAsync($"Command executed: /{command.Data.Name} by {command.User.Username} in #{command.Channel.Name}");
         HBCommand? hbCommand = HBData.HBCommandList.Find(x => command.Data.Name.Equals(x.Name));
         if (hbCommand == null) {
             await command.RespondAsync(embed: (new EmbedBuilder()).WithDescription("?????").Build());
@@ -104,21 +114,22 @@ internal class Program {
         _ = hbCommand.ExecuteCommandAsync(command);
     }
 
-    private Task DMessageReceivedEventAsync(SocketMessage message) {
-        if (message.Channel.Id == HBData.AchievementsChannelID && message is SocketUserMessage)
-            _ = AchievementThreadsMethods.ProcessAchievementsChannelMessage((SocketUserMessage)message);
+    private Task DMessageReceivedEvent(SocketMessage message) {
+        if (message.Channel.Id == HBData.AchievementsChannelID && message is SocketUserMessage userMessage)
+            _ = AchievementThreadsMethods.ProcessAchievementsChannelMessage(userMessage);
         return Task.CompletedTask;
     }
 
     private static async Task ConsoleClientAsync() {
-        Console.WriteLine("HeinzBOTtle\nType \"help\" for a list of console commands.");
+        await HBData.Log.InfoAsync("HeinzBOTtle\nType \"help\" for a list of console commands.");
         while (true) {
             string? command = Console.ReadLine();
             if (command == null || command.Equals(""))
                 continue;
+            await HBData.Log.InfoAsync($"Console command entered: {command}");
             switch (command) {
                 case "help":
-                    Console.WriteLine("=> shutdown\n=> update-commands\n=> display-cache\n=> clean-cache\n=> get-rankings");
+                    await HBData.Log.InfoAsync("=> shutdown\n=> update-commands\n=> display-cache\n=> clean-cache\n=> get-rankings\n=> release-log");
                     break;
                 case "shutdown":
                     return;
@@ -132,20 +143,23 @@ internal class Program {
                     HypixelMethods.CleanCache();
                     break;
                 case "get-rankings":
-                    Console.WriteLine("Starting rankings retrieval...");
+                    await HBData.Log.InfoAsync("Starting rankings retrieval...");
                     HBData.LeaderboardRankings.Clear();
                     await LBMethods.RefreshRankingsFromChannelAsync((SocketTextChannel)HBData.DiscordClient.GetChannel(HBData.LeaderboardsChannelID));
-                    Console.WriteLine("Done!");
+                    await HBData.Log.InfoAsync("Done!");
+                    break;
+                case "release-log":
+                    await HBData.Log.ReleaseLogAsync();
                     break;
                 default:
-                    Console.WriteLine("???");
+                    await HBData.Log.InfoAsync("???");
                     break;
             }
         }
     }
 
     private static async Task UpdateCommandsAsync() {
-        Console.WriteLine("Getting guild info...");
+        await HBData.Log.InfoAsync("Getting guild info...");
         SocketGuild guild = HBData.DiscordClient.GetGuild(HBData.DiscordGuildID);
         IReadOnlyCollection<SocketApplicationCommand> existingCommands = await guild.GetApplicationCommandsAsync();
         Dictionary<string, SocketApplicationCommand> existingCommandsMap = new Dictionary<string, SocketApplicationCommand>();
@@ -153,7 +167,7 @@ internal class Program {
             if (existingCommand.Type == ApplicationCommandType.Slash)
                 existingCommandsMap.Add(existingCommand.Name, existingCommand);
         }
-        Console.WriteLine("Performing command updates...");
+        await HBData.Log.InfoAsync("Performing command updates...");
         foreach (HBCommand command in HBData.HBCommandList) {
             await Task.Delay(1000);
             if (existingCommandsMap.ContainsKey(command.Name)) {
@@ -169,22 +183,24 @@ internal class Program {
                 try {
                     await guild.CreateApplicationCommandAsync(command.GenerateCommandProperties());
                 } catch (HttpException exception) {
-                    Console.WriteLine($"Creation of \"{command.Name}\" command failed: " + exception.Message);
+                    await HBData.Log.InfoAsync($"Creation of \"{command.Name}\" command failed: " + exception.Message);
                 }
             }
 
         }
-        Console.WriteLine("Done!");
+        await HBData.Log.InfoAsync("Done!");
     }
 
     private static void DisplayCache() {
-        Console.WriteLine("Current Timestamp: " + DateTime.Now.Ticks);
+        HBData.Log.Info("Current Timestamp: " + DateTime.Now.Ticks);
         if (HBData.APICache.Count == 0) {
-            Console.WriteLine("The cache is empty.");
+            HBData.Log.Info("The cache is empty.");
             return;
         }
+        string message = "";
         foreach (string username in HBData.APICache.Keys)
-            Console.WriteLine(username + " - " + HBData.APICache[username].Timestamp);
+            message += $"{username} - {HBData.APICache[username].Timestamp}\n";
+        HBData.Log.Info(message.TrimEnd());
     }
 
 }
