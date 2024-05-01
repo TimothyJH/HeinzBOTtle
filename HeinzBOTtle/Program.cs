@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using HeinzBOTtle.Commands;
 using HeinzBOTtle.Hypixel;
 using HeinzBOTtle.Leaderboards;
+using HeinzBOTtle.Requirements;
 
 namespace HeinzBOTtle;
 
@@ -32,8 +33,9 @@ internal class Program {
         string? rawDiscordGuildID = json.GetString("DiscordGuildID");
         string? rawLeaderboardsChannelID = json.GetString("LeaderboardsChannelID");
         string? rawAchievementsChannelID = json.GetString("AchievementsChannelID");
+        string? rawLogDestinationPath = json.GetString("LogDestinationPath");
         if (rawHypixelKey == null || rawDiscordToken == null || rawHypixelGuildID == null || rawDiscordGuildID == null
-            || rawLeaderboardsChannelID == null || rawAchievementsChannelID == null) {
+            || rawLeaderboardsChannelID == null || rawAchievementsChannelID == null || rawLogDestinationPath == null) {
             HBData.Log.Info("Invalid variables.json file!");
             return false;
         }
@@ -43,6 +45,7 @@ internal class Program {
         HBData.DiscordGuildID = ulong.Parse(rawDiscordGuildID);
         HBData.LeaderboardsChannelID = ulong.Parse(rawLeaderboardsChannelID);
         HBData.AchievementsChannelID = ulong.Parse(rawAchievementsChannelID);
+        HBData.LogDestinationPath = rawLogDestinationPath;
         return true;
     }
 
@@ -61,6 +64,7 @@ internal class Program {
         // Setting up the Discord client:
         HBData.DiscordClient.Log += DLogEvent;
         HBData.DiscordClient.Ready += DReadyEvent;
+        HBData.DiscordClient.Disconnected += DDisconnectedEvent;
         await HBData.DiscordClient.LoginAsync(TokenType.Bot, HBData.DiscordToken);
         await HBData.DiscordClient.StartAsync();
 
@@ -70,7 +74,11 @@ internal class Program {
                 break;
             await HBData.Log.InfoAsync("The Discord client is taking quite a long time to get ready; perhaps something is wrong?");
         }
+        HBData.DiscordClient.Ready -= DReadyEvent;
         ReadySignal.Release();
+
+        // Getting role data from Discord:
+        ReqMethods.RefreshRequirementRoles();
 
         // Running the console client:
         await ConsoleClientAsync();
@@ -78,14 +86,13 @@ internal class Program {
         // Stopping the program:
         await HBData.DiscordClient.StopAsync();
         HBData.Log.Dispose();
+        HBData.Log.Retire(new DirectoryInfo(HBData.LogDestinationPath));
     }
 
     private Task DLogEvent(LogMessage msg) {
         HBData.Log.WriteLineToLog(msg.Message, "Discord.Net", DateTime.Now);
         if (msg.Exception != null)
             HBData.Log.WriteLineToLog(msg.Exception.ToString(), "Discord.Net", DateTime.Now);
-        if (msg.ToString().Trim().EndsWith("Disconnecting"))
-            HypixelMethods.CleanCache();
         return Task.CompletedTask;
     }
 
@@ -96,8 +103,17 @@ internal class Program {
         return Task.CompletedTask;
     }
 
+    private Task DDisconnectedEvent(Exception exception) {
+        HypixelMethods.CleanCache();
+        return Task.CompletedTask;
+    }
+
     private async Task DSlashCommandExecutedEventAsync(SocketSlashCommand command) {
-        await HBData.Log.InfoAsync($"Command executed: /{command.Data.Name} by {command.User.Username} in #{command.Channel.Name}");
+        string logMessage = $"Command executed: /{command.Data.Name} by {command.User.Username} in #{command.Channel.Name}";
+        foreach (SocketSlashCommandDataOption arg in command.Data.Options) {
+            logMessage += $"\n   {arg.Name} ({arg.Type}): {arg.Value}";
+        }
+        await HBData.Log.InfoAsync(logMessage);
         HBCommand? hbCommand = HBData.HBCommandList.Find(x => command.Data.Name.Equals(x.Name));
         if (hbCommand == null) {
             await command.RespondAsync(embed: (new EmbedBuilder()).WithDescription("?????").Build());
@@ -129,7 +145,7 @@ internal class Program {
             await HBData.Log.InfoAsync($"Console command entered: {command}");
             switch (command) {
                 case "help":
-                    await HBData.Log.InfoAsync("=> shutdown\n=> update-commands\n=> display-cache\n=> clean-cache\n=> get-rankings\n=> release-log");
+                    await HBData.Log.InfoAsync("=> shutdown\n=> update-commands\n=> display-cache\n=> clean-cache\n=> get-rankings\n=> release-logs");
                     break;
                 case "shutdown":
                     return;
@@ -148,8 +164,8 @@ internal class Program {
                     await LBMethods.RefreshRankingsFromChannelAsync((SocketTextChannel)HBData.DiscordClient.GetChannel(HBData.LeaderboardsChannelID));
                     await HBData.Log.InfoAsync("Done!");
                     break;
-                case "release-log":
-                    await HBData.Log.ReleaseLogAsync();
+                case "release-logs":
+                    await HBData.Log.ReleaseLogsAsync();
                     break;
                 default:
                     await HBData.Log.InfoAsync("???");

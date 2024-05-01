@@ -29,6 +29,8 @@ public static class HBData {
     public static ulong LeaderboardsChannelID { get; set; } = 0;
     /// <summary>The ID of the Discord text channel dedicated to hosting player achievements.</summary>
     public static ulong AchievementsChannelID { get; set; } = 0;
+    /// <summary>The place where the log files should be stored when the program terminates.</summary>
+    public static string LogDestinationPath { get; set; } = "";
 
     // Assets
     /// <summary>The list of active Discord slash command implementers.</summary>
@@ -37,10 +39,11 @@ public static class HBData {
     public static List<Requirement> RequirementList { get; } = GenerateRequirementList();
     /// <summary>The list of active guild leaderboards.</summary>
     public static List<Leaderboard> LeaderboardList { get; } = GenerateLeaderboardList();
+    public static Dictionary<Requirement, ulong> RequirementRoleMap { get; } = new Dictionary<Requirement, ulong>();
 
     // Other
     /// <summary>The logging interface for all displayed messages.</summary>
-    public static HBLog Log { get; } = new HBLog("log.txt");
+    public static HBLog Log { get; } = new HBLog("log-full.txt", "log-reduced.txt");
     /// <summary>The cache of requests to the Hypixel API.</summary>
     public static Dictionary<string, CachedInfo> APICache { get; } = new Dictionary<string, CachedInfo>();
     /// <summary>The cache of leaderboard rankings where a player's username (normalized to lowercase) is mapped to the player's ranking information.</summary>

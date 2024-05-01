@@ -5,52 +5,69 @@
 /// </summary>
 public sealed class HBLog : IDisposable {
 
-    /// <summary>The interface for writing messages to the log file.</summary>
-    public StreamWriter? LogWriter { get; private set; }
-    /// <summary>The path indicating the location of the log file in the filesystem.</summary>
-    public string LogFilePath { get; }
+    /// <summary>The interface for writing messages to the full log file.</summary>
+    public StreamWriter? FullLogWriter { get; private set; }
+    /// <summary>The interface for writing messages to the reduced log file.</summary>
+    public StreamWriter? ReducedLogWriter { get; private set; }
+    /// <summary>The path indicating the location of the full log file in the filesystem.</summary>
+    public string FullLogFilePath { get; }
+    /// <summary>The path indicating the location of the reduced log file in the filesystem.</summary>
+    public string ReducedLogFilePath { get; }
     /// <summary>Indicates whether the log file was successfully initialized at the start of the program.</summary>
     public bool SuccessfulSetup { get; }
+    /// <summary>The date to be used when renaming the log files before terminating the program.</summary>
+    private DateTime LogStart { get; }
     /// <summary>Controls mutual exclusion for access of the log file.</summary>
     private Semaphore FileSemaphore { get; }
 
-    public HBLog(string logFilePath) {
-        LogFilePath = logFilePath;
+    public HBLog(string logFilePath, string reducedLogFilePath) {
+        LogStart = DateTime.Now;
+        FullLogFilePath = logFilePath;
+        ReducedLogFilePath = reducedLogFilePath;
         FileSemaphore = new Semaphore(1, 1);
         try {
-            if (File.Exists(LogFilePath))
-                File.Delete(LogFilePath);
-            LogWriter = File.AppendText(LogFilePath);
+            if (File.Exists(FullLogFilePath))
+                File.Delete(FullLogFilePath);
+            if (File.Exists(ReducedLogFilePath))
+                File.Delete(ReducedLogFilePath);
+            FullLogWriter = File.AppendText(FullLogFilePath);
+            ReducedLogWriter = File.AppendText(ReducedLogFilePath);
             SuccessfulSetup = true;
         } catch {
-            LogWriter = null;
+            FullLogWriter = null;
+            ReducedLogWriter = null;
             SuccessfulSetup = false;
         }
     }
 
     /// <summary>Writes a line to the log with an immediate timestamp and HeinzBOTtle as the message source.</summary>
     /// <param name="message">The message to write, which will be followed by a line termination</param>
-    public void Info(string? message) {
-        WriteLineToLog(message, "HeinzBOTtle", DateTime.Now);
+    /// /// <param name="reduced">Whether the message should be included in the reduced log</param>
+    public void Info(string? message, bool reduced = true) {
+        WriteLineToLog(message, "HeinzBOTtle", DateTime.Now, reduced);
     }
 
     /// <summary>Writes a line to the log asynchronously with an immediate timestamp and HeinzBOTtle as the message source.</summary>
     /// <param name="message">The message to write, which will be followed by a line termination</param>
-    public async Task InfoAsync(string? message) {
-        await WriteLineToLogAsync(message, "HeinzBOTtle", DateTime.Now);
+    /// /// <param name="reduced">Whether the message should be included in the reduced log</param>
+    public async Task InfoAsync(string? message, bool reduced = true) {
+        await WriteLineToLogAsync(message, "HeinzBOTtle", DateTime.Now, reduced);
     }
 
     /// <summary>Writes a line to the log based on the provided arguments.</summary>
     /// <param name="message">The message to write, which will be followed by a line termination</param>
     /// <param name="source">The source of the message for inclusion in the message prefix</param>
     /// <param name="ts">The message timestamp for inclusion in the message prefix</param>
-    public void WriteLineToLog(string? message, string source, DateTime ts) {
+    /// <param name="reduced">Whether the message should be included in the reduced log</param>
+    public void WriteLineToLog(string? message, string source, DateTime ts, bool reduced = false) {
         if (message == null)
             return;
         ApplyPrefix(ref message, source, ts);
         Console.WriteLine(message);
         if (FileSemaphore.WaitOne(2000)) {
-            LogWriter!.WriteLine(message);
+            FullLogWriter!.WriteLine(message);
+            if (reduced)
+                ReducedLogWriter!.WriteLine(message);
             FileSemaphore.Release();
         } else
             Console.WriteLine($"(!) MESSAGE COULD NOT BE LOGGED TO FILE!");
@@ -60,13 +77,19 @@ public sealed class HBLog : IDisposable {
     /// <param name="message">The message to write, which will be followed by a line termination</param>
     /// <param name="source">The source of the message for inclusion in the message prefix</param>
     /// <param name="ts">The message timestamp for inclusion in the message prefix</param>
-    public async Task WriteLineToLogAsync(string? message, string source, DateTime ts) {
+    /// <param name="reduced">Whether the message should be included in the reduced log</param>
+    public async Task WriteLineToLogAsync(string? message, string source, DateTime ts, bool reduced = false) {
         if (message == null)
             return;
         ApplyPrefix(ref message, source, ts);
         Console.WriteLine(message);
         if (FileSemaphore.WaitOne(2000)) {
-            await LogWriter!.WriteLineAsync(message);
+            Task fullTask = FullLogWriter!.WriteLineAsync(message);
+            if (reduced) {
+                Task reducedTask = ReducedLogWriter!.WriteLineAsync(message);
+                await reducedTask;
+            }
+            await fullTask;
             FileSemaphore.Release();
         } else
             Console.WriteLine($"(!) MESSAGE COULD NOT BE LOGGED TO FILE!");
@@ -91,21 +114,60 @@ public sealed class HBLog : IDisposable {
     }
 
     /// <summary>Fluishes the log file's stream and temporarily releases process control over the log file so that the file may reveal its contents.</summary>
-    public async Task ReleaseLogAsync() {
+    public async Task ReleaseLogsAsync() {
         Console.WriteLine("Attempting to release the log temporarily; the operations associated with this will not be logged to the log file.");
         if (FileSemaphore.WaitOne(2000)) {
-            await LogWriter!.FlushAsync();
-            LogWriter!.Close();
-            LogWriter = File.AppendText(LogFilePath);
+            Task full = FullLogWriter!.FlushAsync();
+            Task reduced = ReducedLogWriter!.FlushAsync();
+            await full;
+            await reduced;
+            FullLogWriter!.Close();
+            FullLogWriter = File.AppendText(FullLogFilePath);
+            ReducedLogWriter!.Close();
+            ReducedLogWriter = File.AppendText(ReducedLogFilePath);
             FileSemaphore.Release();
             Console.WriteLine("Done!");
         } else
             Console.WriteLine("Unable to acquire log semaphore; attempt is abandoned.");
     }
 
+    /// <summary>Moves the log files to the provided destination if that configuration exists. This assumes that the files have already been flushed and closed.</summary>
+    /// <param name="logDestination">The directory to which the log files should be moved</param>
+    public bool Retire(DirectoryInfo logDestination) {
+        try {
+            if (!logDestination.Exists)
+                logDestination.Create();
+            string dir = logDestination.FullName;
+            string fullStem = Path.Combine(dir, $"log-{LogStart.Year}-{LogStart.Month}-{LogStart.Day}-full");
+            string reducedStem = Path.Combine(dir, $"log-{LogStart.Year}-{LogStart.Month}-{LogStart.Day}-reduced");
+            if (File.Exists(fullStem + ".txt") || File.Exists(reducedStem + ".txt")) {
+                for (int i = 1; i < 1234567890; i++) {
+                    if (!File.Exists($"{fullStem}-{i}.txt") && !File.Exists($"{reducedStem}-{i}.txt")) {
+                        File.Move(FullLogFilePath, $"{fullStem}-{i}.txt");
+                        File.Move(ReducedLogFilePath, $"{reducedStem}-{i}.txt");
+                        Console.WriteLine($"Logs were successfully moved to \"log-{LogStart.Year}-{LogStart.Month}-{LogStart.Day}-*-{i}.txt\".");
+                        return true;
+                    }
+                }
+                Console.WriteLine("Unable to move logs because SOMEHOW there are already over a billion logs from today! I wonder how that happened...");
+                return false;
+            } else {
+                File.Move(FullLogFilePath, fullStem + ".txt");
+                File.Move(ReducedLogFilePath, reducedStem + ".txt");
+                Console.WriteLine($"Logs were successfully moved to \"log-{LogStart.Year}-{LogStart.Month}-{LogStart.Day}-*.txt\".");
+                return true;
+            }
+        } catch (Exception e) {
+            Console.WriteLine($"Unable to move logs due to an exception ({e.GetType()}): {e.Message}\n{e.StackTrace}");
+            return false;
+        }
+    }
+
     public void Dispose() {
-        LogWriter!.Flush();
-        LogWriter!.Close();
+        FullLogWriter!.Flush();
+        FullLogWriter!.Close();
+        ReducedLogWriter!.Flush();
+        ReducedLogWriter!.Dispose();
     }
 
 }

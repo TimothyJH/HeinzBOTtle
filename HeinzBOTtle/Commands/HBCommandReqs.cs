@@ -65,7 +65,10 @@ public class HBCommandReqs : HBCommand {
         else
             output += "is network level " + level + " and meets " + met.Count + " game requirements:\n";
         foreach (Requirement req in met) {
-            output += "\n" + req.Title + " - " + req.GameTitle;
+            if (HBData.RequirementRoleMap.TryGetValue(req, out ulong roleID))
+                output += $"\n<@&{roleID}> - {req.GameTitle}";
+            else
+                output += $"\n{req.Title} - {req.GameTitle}";
         }
 
         embed.WithDescription(output);
