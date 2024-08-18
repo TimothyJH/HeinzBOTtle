@@ -10,11 +10,14 @@ public abstract class HBCommand {
 
     /// <summary>The literal name of the command as called in Discord without the initial slash.</summary>
     public string Name { get; }
+    /// <summary>Whether this command should acquire the database modification semaphore for its execution.</summary>
+    public bool ModifiesDatabase { get; }
     /// <summary>The timestamp of the most recent instance of the command's execution.</summary>
     public long LastExecution { get; set; }
 
-    public HBCommand(string name) {
+    public HBCommand(string name, bool modifiesDatabase = false) {
         Name = name;
+        ModifiesDatabase = modifiesDatabase;
         LastExecution = 0L;
     }
 

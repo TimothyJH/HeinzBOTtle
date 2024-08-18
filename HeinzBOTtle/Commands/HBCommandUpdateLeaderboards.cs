@@ -12,7 +12,6 @@ public class HBCommandUpdateLeaderboards : HBCommand {
     public HBCommandUpdateLeaderboards() : base("update-leaderboards") { }
 
     public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
-        await command.DeferAsync();
         if (!HBData.LeaderboardsUpdating.WaitOne(100)) {
             EmbedBuilder updating = new EmbedBuilder();
             updating.WithDescription("The leaderboards are already in the process of updating!");
@@ -55,7 +54,7 @@ public class HBCommandUpdateLeaderboards : HBCommand {
 
     public override SlashCommandProperties GenerateCommandProperties() {
         SlashCommandBuilder command = new SlashCommandBuilder();
-        command.IsDefaultPermission = false;
+        command.DefaultMemberPermissions = GuildPermission.Administrator;
         command.WithName(Name);
         command.WithDescription("This updates the guild leaderboards and can be used once every 2 hours.");
         return command.Build();

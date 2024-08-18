@@ -13,8 +13,6 @@ public sealed class HBLog : IDisposable {
     public string FullLogFilePath { get; }
     /// <summary>The path indicating the location of the reduced log file in the filesystem.</summary>
     public string ReducedLogFilePath { get; }
-    /// <summary>Indicates whether the log file was successfully initialized at the start of the program.</summary>
-    public bool SuccessfulSetup { get; }
     /// <summary>The date to be used when renaming the log files before terminating the program.</summary>
     private DateTime LogStart { get; }
     /// <summary>Controls mutual exclusion for access of the log file.</summary>
@@ -25,6 +23,12 @@ public sealed class HBLog : IDisposable {
         FullLogFilePath = logFilePath;
         ReducedLogFilePath = reducedLogFilePath;
         FileSemaphore = new Semaphore(1, 1);
+        
+    }
+
+    /// <summary>Opens the file streams to write the logs.</summary>
+    /// <returns>Whether the operation was successful.</returns>
+    public bool Start() {
         try {
             if (File.Exists(FullLogFilePath))
                 File.Delete(FullLogFilePath);
@@ -32,24 +36,24 @@ public sealed class HBLog : IDisposable {
                 File.Delete(ReducedLogFilePath);
             FullLogWriter = File.AppendText(FullLogFilePath);
             ReducedLogWriter = File.AppendText(ReducedLogFilePath);
-            SuccessfulSetup = true;
+            return true;
         } catch {
             FullLogWriter = null;
             ReducedLogWriter = null;
-            SuccessfulSetup = false;
+            return false;
         }
     }
 
     /// <summary>Writes a line to the log with an immediate timestamp and HeinzBOTtle as the message source.</summary>
     /// <param name="message">The message to write, which will be followed by a line termination</param>
-    /// /// <param name="reduced">Whether the message should be included in the reduced log</param>
+    /// <param name="reduced">Whether the message should be included in the reduced log</param>
     public void Info(string? message, bool reduced = true) {
         WriteLineToLog(message, "HeinzBOTtle", DateTime.Now, reduced);
     }
 
     /// <summary>Writes a line to the log asynchronously with an immediate timestamp and HeinzBOTtle as the message source.</summary>
     /// <param name="message">The message to write, which will be followed by a line termination</param>
-    /// /// <param name="reduced">Whether the message should be included in the reduced log</param>
+    /// <param name="reduced">Whether the message should be included in the reduced log</param>
     public async Task InfoAsync(string? message, bool reduced = true) {
         await WriteLineToLogAsync(message, "HeinzBOTtle", DateTime.Now, reduced);
     }

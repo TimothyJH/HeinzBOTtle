@@ -26,23 +26,4 @@ public static class ReqMethods {
         return formatted[..^2];
     }
 
-    public static void RefreshRequirementRoles() {
-        HBData.RequirementRoleMap.Clear();
-        SocketGuild guild = HBData.DiscordClient.GetGuild(HBData.DiscordGuildID);
-        List<SocketRole> roles = new List<SocketRole>();
-        foreach (SocketRole role in guild.Roles)
-            roles.Add(role);
-        bool safe = true;
-        foreach (Requirement req in HBData.RequirementList) {
-            SocketRole? role = roles.Find(x => req.Title == x.Name);
-            if (role == null) {
-                safe = false;
-                HBData.Log.Info($"FATAL: Unable to find role match for requirement with title \"{req.Title}\"!");
-            } else
-                HBData.RequirementRoleMap[req] = role.Id;
-        }
-        if (!safe)
-            throw new InvalidDataException("The requirements could not be mapped to roles successfully.");
-    }
-
 }

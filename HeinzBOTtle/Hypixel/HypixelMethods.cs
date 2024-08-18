@@ -78,6 +78,13 @@ public static class HypixelMethods {
             HBData.APICache.Remove(username);
     }
 
+    /// <summary>This method might cause an exception if the provided string is not of length 32.</summary>
+    /// <param name="rawUUID">The raw, undashed UUID</param>
+    /// <returns>A Minecraft UUID that is dashed as presented in Minecraft.</returns>
+    public static string ToDashedUUID(string rawUUID) {
+        return $"{rawUUID[0..8]}-{rawUUID[8..16]}-{rawUUID[16..24]}-{rawUUID[24..32]}";
+    }
+
     /// <param name="username">The username to check</param>
     /// <returns>True if the provided username is a possible Minecraft username, otherwise false.</returns>
     public static bool IsValidUsername(string username) {

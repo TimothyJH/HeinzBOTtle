@@ -1,0 +1,18 @@
+-- Latest Version: 1
+
+-- [1]
+CREATE TABLE Users (
+    ID INT UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL,
+    EnrollmentTimestamp BIGINT UNSIGNED NOT NULL,
+    DiscordUserID BIGINT UNSIGNED UNIQUE,
+    MinecraftUUID CHAR(32) UNIQUE,
+    SignatureColor INT UNSIGNED,
+    Flags TINYINT UNSIGNED NOT NULL
+);
+CREATE TABLE LinkPending (
+    DiscordUserID BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+    MinecraftUUID VARCHAR(32) NOT NULL,
+    ReviewMessageID BIGINT UNSIGNED NOT NULL
+);
+UPDATE GlobalData SET CurrentValue = 1 WHERE ID = "SchemaVersion";
+-- END

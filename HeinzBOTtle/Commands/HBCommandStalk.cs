@@ -13,7 +13,6 @@ public class HBCommandStalk : HBCommand {
     public HBCommandStalk() : base("stalk") { }
 
     public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
-        await command.DeferAsync();
         if (!HBData.LeaderboardsUpdating.WaitOne(100)) {
             EmbedBuilder fail = new EmbedBuilder();
             fail.WithDescription("This command cannot be used while the leaderboards are updating.");
@@ -75,7 +74,7 @@ public class HBCommandStalk : HBCommand {
 
     public override SlashCommandProperties GenerateCommandProperties() {
         SlashCommandBuilder command = new SlashCommandBuilder();
-        command.IsDefaultPermission = true;
+        command.DefaultMemberPermissions = null;
         command.WithName(Name);
         command.WithDescription("This checks the guild leaderboard rankings of the provided player.");
         command.AddOption("username", ApplicationCommandOptionType.String, "The username of the player to check", isRequired: true);

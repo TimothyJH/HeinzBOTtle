@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using HeinzBOTtle.Database;
 using HeinzBOTtle.Hypixel;
 using HeinzBOTtle.Ranks;
 using System.Text.Json;
@@ -14,7 +15,6 @@ public class HBCommandPromotions : HBCommand {
     public HBCommandPromotions() : base("promotions") { }
 
     public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
-        await command.DeferAsync();
         Json? guild = await HypixelMethods.RetrieveGuildAPI(HBData.HypixelGuildID);
         Task initialBuffer = Task.Delay(1000);
         if (guild == null || guild.GetBoolean("success") == false) {
@@ -55,7 +55,8 @@ public class HBCommandPromotions : HBCommand {
             string? rankRaw = memberDic["rank"].GetString();
             if (rankRaw == null)
                 continue;
-            Rank? rank = RankMethods.StringToRank(rankRaw);
+            Enum.TryParse(typeof(Rank), rankRaw, true, out object? foundRank);
+            Rank? rank = (Rank?)foundRank;
             if (rank == null || rank == Rank.Veteran)
                 continue; // This continue does not imply an error like the other ones; it just doesn't make sense to check these players for promotions.
             string? uuid = memberDic["uuid"].GetString();
@@ -85,7 +86,10 @@ public class HBCommandPromotions : HBCommand {
                     await buffer;
                     continue;
                 }
-                (TimeSpan, Rank)? distance = RankMethods.CalculateTimeUntilPromotion(json, (TimeSpan)timeInGuild, playerInfo.Item2);
+
+                DBUser? user =  await DBUser.FromMinecraftUUIDAsync(json.GetString("player.uuid") ?? "?????");
+                Rank previousHighestRank = user != null ? (Rank)(await user.Value.GetFlagsAsync() & 0b111) : Rank.None;
+                (TimeSpan, Rank)? distance = RankMethods.CalculateTimeUntilPromotion(json, (TimeSpan)timeInGuild, playerInfo.Item2, previousHighestRank);
                 if (distance == null) {
                     await buffer;
                     continue;
@@ -93,7 +97,7 @@ public class HBCommandPromotions : HBCommand {
                 if (distance.Value.Item1 <= TimeSpan.Zero) {
                     promoteNow.Add(((json.GetString("player.displayname") ?? "?????").Replace("_", "\\_"), distance.Value.Item2));
                     // This performs an additional future check in case this player is extremely overdue for the current promotion and will qualify for the next rank soon.
-                    distance = RankMethods.CalculateTimeUntilPromotion(json, (TimeSpan)timeInGuild, distance.Value.Item2);
+                    distance = RankMethods.CalculateTimeUntilPromotion(json, (TimeSpan)timeInGuild, distance.Value.Item2, previousHighestRank);
                 }
                 if (distance != null && distance.Value.Item1.TotalDays <= 30.0) {
                     if (distance.Value.Item1.TotalDays <= 7.0)
@@ -143,7 +147,7 @@ public class HBCommandPromotions : HBCommand {
 
     public override SlashCommandProperties GenerateCommandProperties() {
         SlashCommandBuilder command = new SlashCommandBuilder();
-        command.IsDefaultPermission = false;
+        command.DefaultMemberPermissions = GuildPermission.Administrator;
         command.WithName(Name);
         command.WithDescription("(May take multiple minutes to finish!) Reports whether any guild members should be promoted.");
         return command.Build();

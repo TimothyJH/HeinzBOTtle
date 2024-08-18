@@ -5,6 +5,8 @@ using HeinzBOTtle.Hypixel;
 using HeinzBOTtle.Leaderboards;
 using HeinzBOTtle.Leaderboards.Special;
 using HeinzBOTtle.Requirements;
+using MySqlConnector;
+using System.Collections.Immutable;
 
 namespace HeinzBOTtle;
 
@@ -15,6 +17,8 @@ public static class HBData {
     public static DiscordSocketClient DiscordClient { get; } = new DiscordSocketClient();
     /// <summary>The client dealing with interactions between this process and the Hypixel API.</summary>
     public static HttpClient HttpClient { get; } = new HttpClient();
+    /// <summary>The client dealing with interactions between this process and the database.</summary>
+    public static MySqlConnection DatabaseConnection { get; } = new MySqlConnection();
     
     // Config
     /// <summary>The secret key used to make requests to the Hypixel API.</summary>
@@ -29,8 +33,24 @@ public static class HBData {
     public static ulong LeaderboardsChannelID { get; set; } = 0;
     /// <summary>The ID of the Discord text channel dedicated to hosting player achievements.</summary>
     public static ulong AchievementsChannelID { get; set; } = 0;
+    /// <summary>The ID of the Discord text channel to which link reviews are sent.</summary>
+    public static ulong ReviewChannelID { get; set; } = 0;
+    /// <summary>The ID of the Discord text channel dedicated to in-guild logging.</summary>
+    public static ulong LogsChannelID { get; set; } = 0;
+    /// <summary>The Discord role ID for the Guest role.</summary>
+    public static ulong GuestRoleID { get; set; } = 0;
+    /// <summary>The Discord role ID for the Guild Member role.</summary>
+    public static ulong GuildMemberRoleID { get; set; } = 0;
+    /// <summary>The Discord role ID for the Honorary Quest role.</summary>
+    public static ulong HonoraryQuestRoleID { get; set; } = 0;
+    /// <summary>The Discord role ID for the Treehard role.</summary>
+    public static ulong TreehardRoleID { get; set; } = 0;
+    /// <summary>The Discord role ID for the Treehard+ role.</summary>
+    public static ulong TreehardPlusRoleID { get; set; } = 0;
     /// <summary>The place where the log files should be stored when the program terminates.</summary>
     public static string LogDestinationPath { get; set; } = "";
+    /// <summary>The login details for the database in the form "IP[:PORT] DATABASENAME USERNAME PASSWORD"</summary>
+    public static string DatabaseLogin { get; set; } = "";
 
     // Assets
     /// <summary>The list of active Discord slash command implementers.</summary>
@@ -39,7 +59,9 @@ public static class HBData {
     public static List<Requirement> RequirementList { get; } = GenerateRequirementList();
     /// <summary>The list of active guild leaderboards.</summary>
     public static List<Leaderboard> LeaderboardList { get; } = GenerateLeaderboardList();
-    public static Dictionary<Requirement, ulong> RequirementRoleMap { get; } = new Dictionary<Requirement, ulong>();
+    public static ImmutableList<string> NecessaryRoles { get; } = GenerateNecessaryRolesList();
+
+    public static Dictionary<string, ulong> RoleMap { get; } = new Dictionary<string, ulong>();
 
     // Other
     /// <summary>The logging interface for all displayed messages.</summary>
@@ -52,16 +74,25 @@ public static class HBData {
     public static Dictionary<string, int> QuestParticipationsLeaderboardMap { get; } = new Dictionary<string, int>();
     /// <summary>A semaphore indicating whether a leaderboard update is in progress.</summary>
     public static Semaphore LeaderboardsUpdating { get; set; } = new Semaphore(1, 1);
+    /// <summary>A semaphore controlling the order of concurrent database modifications.</summary>
+    public static Semaphore ModifyingDatabase { get; set; } = new Semaphore(1, 1);
     /// <summary>Timestamp indicating when the last leaderboard update began.</summary>
     public static long LeaderboardsLastUpdated { get; set; } = 0;
 
     // Asset Generators
     private static List<HBCommand> GenerateHBCommandList() {
         List<HBCommand> list = new List<HBCommand>() {
+            new HBCommandLinkMinecraft(),
+            new HBCommandLinkNewUser(),
+            new HBCommandModifyUser(),
             new HBCommandPromotions(),
             new HBCommandReqs(),
+            new HBCommandSetSignatureColor(),
             new HBCommandStalk(),
-            new HBCommandUpdateLeaderboards()
+            new HBCommandUpdate(),
+            new HBCommandUpdateLeaderboards(),
+            new HBCommandUpdateUser(),
+            new HBCommandUserInfo()
         };
         return list;
     }
@@ -132,6 +163,15 @@ public static class HBData {
             new SimpleLeaderboard("Warlords", "Wins", Color.Purple, "player.stats.Battleground.wins"),
             new WoolWarsLevelLeaderboard()
         };
+    }
+
+    private static ImmutableList<string> GenerateNecessaryRolesList() {
+        List<string> l = new List<string>() {
+            "Guest", "Guild Member", "Honorary Quest", "Treehard", "Treehard+"
+        };
+        foreach (Requirement req in HBData.RequirementList)
+            l.Add(req.Title);
+        return l.ToImmutableList();
     }
 
 }

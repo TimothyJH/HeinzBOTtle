@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using HeinzBOTtle.Database;
 using HeinzBOTtle.Hypixel;
 using HeinzBOTtle.Requirements;
 using System.Text.Json;
@@ -14,20 +15,36 @@ public class HBCommandReqs : HBCommand {
     public HBCommandReqs() : base("reqs") { }
 
     public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
-        await command.DeferAsync();
-        string username = (string)command.Data.Options.First<SocketSlashCommandDataOption>();
-        username = username.Trim();
-        if (!HypixelMethods.IsValidUsername(username)) {
-            EmbedBuilder fail = new EmbedBuilder();
-            fail.WithDescription("That is not a valid username.");
-            fail.WithColor(Color.Gold);
-            await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                p.Embed = fail.Build();
-            });
-            return;
+        Json json;
+        string username;
+        if (command.Data.Options.Count == 0) {
+            DBUser? user = await DBUser.FromDiscordIDAsync(command.User.Id);
+            string? uuid = null;
+            if (user != null)
+                uuid = await user.Value.GetMinecraftUUIDAsync();
+            if (user == null || uuid == null) {
+                EmbedBuilder fail = new EmbedBuilder();
+                fail.WithDescription("A linked Minecraft account is required to use this command without an argument. You can link your Minecraft account with `/link-minecraft`.");
+                fail.WithColor(Color.Gold);
+                await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
+                    p.Embed = fail.Build();
+                });
+                return;
+            }
+            json = await HypixelMethods.RetrievePlayerAPI(uuid, uuid: true);
+        } else {
+            username = ((string)command.Data.Options.First<SocketSlashCommandDataOption>()).Trim();
+            if (!HypixelMethods.IsValidUsername(username)) {
+                EmbedBuilder fail = new EmbedBuilder();
+                fail.WithDescription("That is not a valid username.");
+                fail.WithColor(Color.Gold);
+                await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
+                    p.Embed = fail.Build();
+                });
+                return;
+            }
+            json = await HypixelMethods.RetrievePlayerAPI(username);
         }
-
-        Json json = await HypixelMethods.RetrievePlayerAPI(username);
 
         bool success = json.GetBoolean("success") ?? false;
         if (!success) {
@@ -65,17 +82,21 @@ public class HBCommandReqs : HBCommand {
         else
             output += "is network level " + level + " and meets " + met.Count + " game requirements:\n";
         foreach (Requirement req in met) {
-            if (HBData.RequirementRoleMap.TryGetValue(req, out ulong roleID))
+            if (HBData.RoleMap.TryGetValue(req.Title, out ulong roleID))
                 output += $"\n<@&{roleID}> - {req.GameTitle}";
             else
                 output += $"\n{req.Title} - {req.GameTitle}";
         }
 
         embed.WithDescription(output);
-        if (level >= 85 && met.Count >= 1)
+        Color? signatureColor = await DBMethods.FindReplacementColorAsync(json.GetString("player.uuid") ?? "?????");
+        if (signatureColor != null)
+            embed.WithColor(signatureColor.Value);
+        else if (level >= 85 && met.Count >= 1)
             embed.WithColor(Color.Green);
         else
             embed.WithColor(Color.Red);
+        if (json.GetString("player.uuid") == "bc9e074ed6da467eaad2de625212fe2f") embed.WithColor(Color.DarkPurple); // Color exception for Maria (requested)
         await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
             p.Embed = embed.Build();
         });
@@ -83,10 +104,10 @@ public class HBCommandReqs : HBCommand {
 
     public override SlashCommandProperties GenerateCommandProperties() {
         SlashCommandBuilder command = new SlashCommandBuilder();
-        command.IsDefaultPermission = true;
+        command.DefaultMemberPermissions = null;
         command.WithName(Name);
         command.WithDescription("This checks the guild requirements met by the provided player.");
-        command.AddOption("username", ApplicationCommandOptionType.String, "The username of the player to check", isRequired: true);
+        command.AddOption("username", ApplicationCommandOptionType.String, "The username of the player to check", isRequired: false);
         return command.Build();
     }
 

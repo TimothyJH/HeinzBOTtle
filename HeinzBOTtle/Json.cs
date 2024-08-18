@@ -146,6 +146,13 @@ public class Json {
     }
 
     /// <param name="node">The dot-delimited JSON node holding the value</param>
+    /// <returns>The unsigned long found at the provided dot-delimited node if it exists, otherwise null.</returns>
+    public ulong? GetUInt64(string node) {
+        JsonElement element = GetElement(node);
+        return element.ValueKind == JsonValueKind.Number ? element.GetUInt64() : null;
+    }
+
+    /// <param name="node">The dot-delimited JSON node holding the value</param>
     /// <returns>The boolean found at the provided dot-delimited node if it exists, otherwise null.</returns>
     public bool? GetBoolean(string node) {
         JsonElement element = GetElement(node);
