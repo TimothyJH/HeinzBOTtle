@@ -161,7 +161,8 @@ public static class HBData {
             new SimpleLeaderboard("VampireZ", "Human Wins", Color.DarkMagenta, "player.achievements.vampirez_survivor_wins"),
             new SimpleLeaderboard("The Walls", "Wins", Color.Gold, "player.achievements.walls_wins"),
             new SimpleLeaderboard("Warlords", "Wins", Color.Purple, "player.stats.Battleground.wins"),
-            new WoolWarsLevelLeaderboard()
+            new WoolGamesCombinedWinsLeaderboard(),
+            new WoolGamesLevelLeaderboard()
         };
     }
 

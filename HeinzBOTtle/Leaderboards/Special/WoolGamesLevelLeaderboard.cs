@@ -4,9 +4,9 @@ using System.Text.Json;
 
 namespace HeinzBOTtle.Leaderboards.Special;
 
-public class WoolWarsLevelLeaderboard : Leaderboard {
+public class WoolGamesLevelLeaderboard : Leaderboard {
 
-    public WoolWarsLevelLeaderboard() : base("Wool Wars", "Level", Color.Teal, false) { }
+    public WoolGamesLevelLeaderboard() : base("Wool Games", "Level", Color.Teal, false) { }
 
     public override string GenerateDisplayStat(PlayerEntry entry) {
         double level = HypixelMethods.GetWoolWarsLevelFromXP(entry.Stat);

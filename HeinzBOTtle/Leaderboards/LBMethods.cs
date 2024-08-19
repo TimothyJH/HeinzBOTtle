@@ -163,7 +163,7 @@ public static class LBMethods {
 
         // Cleaning up:
         EmbedBuilder done = new EmbedBuilder();
-        done.WithDescription("Please note that the leaderboards system is new and may contain errors.\n\nThe leaderboards are finished updating.").WithColor(Color.Green).WithCurrentTimestamp();
+        done.WithDescription("The leaderboards are finished updating.").WithColor(Color.Green).WithCurrentTimestamp();
         await lbChannel.SendMessageAsync(embed: done.Build());
     }
 
