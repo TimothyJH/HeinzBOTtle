@@ -1,4 +1,4 @@
-﻿using Discord.WebSocket;
+﻿using HeinzBOTtle.Statics;
 
 namespace HeinzBOTtle.Requirements;
 
@@ -8,7 +8,7 @@ public static class ReqMethods {
     /// <returns>A list of all guild game requirement met by the player represented by the provided player JSON.</returns>
     public static List<Requirement> GetRequirementsMet(Json playerJson) {
         List<Requirement> met = new List<Requirement>();
-        foreach (Requirement req in HBData.RequirementList) {
+        foreach (Requirement req in HBAssets.RequirementList) {
             if (req.MeetsRequirement(playerJson))
                 met.Add(req);
         }

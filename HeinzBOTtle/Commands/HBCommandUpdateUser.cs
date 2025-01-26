@@ -11,7 +11,7 @@ public class HBCommandUpdateUser : HBCommand {
 
     public HBCommandUpdateUser() : base("update-user", modifiesDatabase: true) { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         uint id = (uint)(long)command.Data.Options.First().Value;
         DBUser user = new DBUser(id);
         if (!await user.Exists()) {

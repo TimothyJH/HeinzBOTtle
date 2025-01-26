@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using HeinzBOTtle.Hypixel;
+using HeinzBOTtle.Statics;
 using MySqlConnector;
 
 namespace HeinzBOTtle.Database;
@@ -14,7 +15,7 @@ public struct DBUser {
     }
 
     public async Task<bool> Exists() {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT ID FROM Users WHERE ID = @a)", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT ID FROM Users WHERE ID = @a)", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", ID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -25,7 +26,7 @@ public struct DBUser {
     }
 
     public async Task<ulong> GetEnrollmentTimestampAsync() {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT EnrollmentTimestamp FROM Users WHERE ID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT EnrollmentTimestamp FROM Users WHERE ID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", ID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -35,7 +36,7 @@ public struct DBUser {
     }
 
     public async Task<byte> SetDiscordUserIDAsync(ulong? discordID, ulong? modifier = null) {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT ID FROM Users WHERE DiscordUserID = @a)", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT ID FROM Users WHERE DiscordUserID = @a)", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", discordID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -43,7 +44,7 @@ public struct DBUser {
                     return 1; // Code 1: Discord account already in use
         }
         ulong? oldDiscordID = await GetDiscordUserIDAsync();
-        using (MySqlCommand cmd = new MySqlCommand("UPDATE Users SET DiscordUserID = @a WHERE ID = @b", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("UPDATE Users SET DiscordUserID = @a WHERE ID = @b", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", discordID == null ? DBNull.Value : discordID);
             cmd.Parameters.AddWithValue("b", ID);
             await cmd.ExecuteNonQueryAsync();
@@ -53,7 +54,7 @@ public struct DBUser {
     }
 
     public async Task<ulong?> GetDiscordUserIDAsync() {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT DiscordUserID FROM Users WHERE ID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT DiscordUserID FROM Users WHERE ID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", ID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -63,7 +64,7 @@ public struct DBUser {
     }
 
     public async Task<byte> SetMinecraftUUIDAsync(string? minecraftUUID, ulong? modifier = null) {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT ID FROM Users WHERE MinecraftUUID = @a)", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT ID FROM Users WHERE MinecraftUUID = @a)", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", minecraftUUID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -71,7 +72,7 @@ public struct DBUser {
                     return 1; // Code 1: Minecraft account already in use
         }
         string? oldUUID = await GetMinecraftUUIDAsync();
-        using (MySqlCommand cmd = new MySqlCommand("UPDATE Users SET MinecraftUUID = @a WHERE ID = @b", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("UPDATE Users SET MinecraftUUID = @a WHERE ID = @b", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", minecraftUUID == null ? DBNull.Value : minecraftUUID);
             cmd.Parameters.AddWithValue("b", ID);
             await cmd.ExecuteNonQueryAsync();
@@ -82,7 +83,7 @@ public struct DBUser {
     }
 
     public async Task<string?> GetMinecraftUUIDAsync() {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT MinecraftUUID FROM Users WHERE ID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT MinecraftUUID FROM Users WHERE ID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", ID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -92,7 +93,7 @@ public struct DBUser {
     }
 
     public async Task<byte> SetSignatureColorAsync(uint color) {
-        using (MySqlCommand cmd = new MySqlCommand("UPDATE Users SET SignatureColor = @a WHERE ID = @b", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("UPDATE Users SET SignatureColor = @a WHERE ID = @b", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", color);
             cmd.Parameters.AddWithValue("b", ID);
             await cmd.ExecuteNonQueryAsync();
@@ -101,7 +102,7 @@ public struct DBUser {
     }
 
     public async Task<uint?> GetSignatureColorAsync() {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT SignatureColor FROM Users WHERE ID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT SignatureColor FROM Users WHERE ID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", ID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -112,7 +113,7 @@ public struct DBUser {
 
     public async Task<byte> SetFlagsAsync(byte flags, ulong? modifier = null) {
         byte oldFlags = await GetFlagsAsync();
-        using (MySqlCommand cmd = new MySqlCommand("UPDATE Users SET Flags = @a WHERE ID = @b", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("UPDATE Users SET Flags = @a WHERE ID = @b", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", flags);
             cmd.Parameters.AddWithValue("b", ID);
             await cmd.ExecuteNonQueryAsync();
@@ -122,7 +123,7 @@ public struct DBUser {
     }
 
     public async Task<byte> GetFlagsAsync() {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT Flags FROM Users WHERE ID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT Flags FROM Users WHERE ID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", ID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -132,7 +133,7 @@ public struct DBUser {
     }
 
     public async Task<(ulong enrollmentTimestamp, ulong? discordUserID, string? minecraftUUID, Color? signatureColor, byte flags)?> GetAllAsync() {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT EnrollmentTimestamp, DiscordUserID, MinecraftUUID, SignatureColor, Flags FROM Users WHERE ID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT EnrollmentTimestamp, DiscordUserID, MinecraftUUID, SignatureColor, Flags FROM Users WHERE ID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", ID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -143,7 +144,7 @@ public struct DBUser {
     }
 
     public static async Task<DBUser?> FromDiscordIDAsync(ulong discordID) {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE DiscordUserID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE DiscordUserID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", discordID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -153,7 +154,7 @@ public struct DBUser {
     }
 
     public static async Task<DBUser?> FromMinecraftUUIDAsync(string minecraftUUID) {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE MinecraftUUID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE MinecraftUUID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", minecraftUUID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -165,13 +166,13 @@ public struct DBUser {
     public static async Task<(DBUser? newUser, byte code)> EnrollAsync(ulong discordID, string minecraftUUID, string cachedMCUsername) {
         // Making sure that the relevant arguments aren't already being used:
         byte errorCode = 0;
-        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE DiscordUserID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE DiscordUserID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", discordID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
                 errorCode |= 1; // Code 1: Discord account already in use
         }
-        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE MinecraftUUID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE MinecraftUUID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", minecraftUUID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -181,7 +182,7 @@ public struct DBUser {
             return (null, errorCode);
 
         // Attempting to enroll the new user:
-        using (MySqlCommand cmd = new MySqlCommand("INSERT INTO Users(EnrollmentTimestamp, DiscordUserID, MinecraftUUID, Flags) VALUES (@a, @b, @c, @d)", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("INSERT INTO Users(EnrollmentTimestamp, DiscordUserID, MinecraftUUID, Flags) VALUES (@a, @b, @c, @d)", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", DateTimeOffset.Now.ToUnixTimeSeconds());
             cmd.Parameters.AddWithValue("b", discordID);
             cmd.Parameters.AddWithValue("c", minecraftUUID);
@@ -189,7 +190,7 @@ public struct DBUser {
             await cmd.ExecuteNonQueryAsync();
         }
         uint newID = uint.MaxValue;
-        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE DiscordUserID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT ID FROM Users WHERE DiscordUserID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", discordID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -200,7 +201,7 @@ public struct DBUser {
         DateTimeOffset ts = DateTimeOffset.Now;
 
         // Communicating the success:
-        SocketTextChannel logsChannel = (SocketTextChannel)HBData.DiscordClient.GetChannel(HBData.LogsChannelID);
+        SocketTextChannel logsChannel = (SocketTextChannel)HBClients.DiscordClient.GetChannel(HBConfig.LogsChannelID);
         EmbedBuilder embed = new EmbedBuilder();
         embed.WithTitle("User enrolled");
         embed.WithDescription($"ID: {newID}\nDiscord: <@{discordID}>\nMinecraft: **{cachedMCUsername.Replace("_", "\\_")}** ({HypixelMethods.ToDashedUUID(minecraftUUID)})");
@@ -217,7 +218,7 @@ public struct DBUser {
     }
 
     public async Task<byte> DeleteAsync(ulong? modifier = null) {
-        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT ID FROM Users WHERE ID = @a)", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT ID FROM Users WHERE ID = @a)", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", ID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -228,13 +229,13 @@ public struct DBUser {
         if (summary == null)
             return 2; // Code 2: Error in data retrieval
         ulong enrollmentTimestamp = await GetEnrollmentTimestampAsync();
-        using (MySqlCommand cmd = new MySqlCommand("DELETE FROM Users WHERE ID = @a", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("DELETE FROM Users WHERE ID = @a", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", ID);
             await cmd.ExecuteNonQueryAsync();
         }
         DateTimeOffset ts = DateTimeOffset.Now;
 
-        SocketTextChannel logsChannel = (SocketTextChannel)HBData.DiscordClient.GetChannel(HBData.LogsChannelID);
+        SocketTextChannel logsChannel = (SocketTextChannel)HBClients.DiscordClient.GetChannel(HBConfig.LogsChannelID);
         EmbedBuilder embed = new EmbedBuilder();
         embed.WithTitle("User deleted");
         embed.WithDescription($"Created: <t:{enrollmentTimestamp}:F>\n{summary}{(modifier != null ? $"\n\nDeleted by <@{modifier}>" : "")}");
@@ -251,15 +252,14 @@ public struct DBUser {
         embed.WithDescription($"ID: {id}\n\nOld {field}: {oldValue}\nNew {field}: {newValue}{(modifier != null ? $"\n\nModified by <@{modifier}>" : "")}");
         embed.WithColor(Color.Blue);
         embed.Build();
-        SocketTextChannel logsChannel = (SocketTextChannel)HBData.DiscordClient.GetChannel(HBData.LogsChannelID);
+        SocketTextChannel logsChannel = (SocketTextChannel)HBClients.DiscordClient.GetChannel(HBConfig.LogsChannelID);
         await logsChannel.SendMessageAsync(embed: embed.Build());
     }
 
 }
 
-/* FLAG BIT ASSIGNMENT
+/* FLAG BIT ASSIGNMENT REFERENCE:
  * 0-2: Highest achieved in-game Rank (based on values for Rank enum) 
  * 3-4: Highest Treehard rank achieved (based on values for TreehardLevel enum)
  * 5: Whether Honorary Quest status is granted
- * 
  */

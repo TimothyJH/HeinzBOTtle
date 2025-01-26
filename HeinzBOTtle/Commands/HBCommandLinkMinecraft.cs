@@ -1,9 +1,8 @@
 ﻿using Discord.WebSocket;
 using Discord;
-using HeinzBOTtle.Hypixel;
-using System.Text.Json;
 using HeinzBOTtle.Database;
 using MySqlConnector;
+using HeinzBOTtle.Statics;
 
 namespace HeinzBOTtle.Commands;
 
@@ -14,41 +13,16 @@ public class HBCommandLinkMinecraft : HBCommand {
 
     public HBCommandLinkMinecraft() : base("link-minecraft", modifiesDatabase: true) { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         ulong discordID = command.User.Id;
         string username = ((string)command.Data.Options.First()).Trim();
-        if (!HypixelMethods.IsValidUsername(username)) {
-            EmbedBuilder fail = new EmbedBuilder();
-            fail.WithDescription("That is not a valid username.");
-            fail.WithColor(Color.Gold);
-            await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                p.Embed = fail.Build();
-            });
-            return;
-        }
 
-        Json json = await HypixelMethods.RetrievePlayerAPI(username);
-
-        bool success = json.GetBoolean("success") ?? false;
-        if (!success) {
-            EmbedBuilder fail = new EmbedBuilder();
-            fail.WithDescription("Oopsies, something went wrong!");
-            fail.WithColor(Color.Gold);
-            await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                p.Embed = fail.Build();
-            });
+        Json json;
+        Json? retrievalAttempt = await HandlePlayerAPIRetrievalAsync(username, false, command);
+        if (retrievalAttempt == null)
             return;
-        }
-
-        if (json.GetValueKind("player") != JsonValueKind.Object) {
-            EmbedBuilder fail = new EmbedBuilder();
-            fail.WithDescription("Hypixel doesn't seem to have any information about the provided player. This player probably changed usernames, never logged into Hypixel, or doesn't exist.");
-            fail.WithColor(Color.Gold);
-            await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                p.Embed = fail.Build();
-            });
-            return;
-        }
+        else
+            json = retrievalAttempt;
 
         username = json.GetString("player.displayname") ?? "?????";
         string uuid = json.GetString("player.uuid") ?? "?????";
@@ -74,7 +48,7 @@ public class HBCommandLinkMinecraft : HBCommand {
         }
 
         bool isAlreadyLinking = false;
-        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT DiscordUserID FROM LinkPending WHERE DiscordUserID = @a)", HBData.DatabaseConnection)) {
+        using (MySqlCommand cmd = new MySqlCommand("SELECT EXISTS(SELECT DiscordUserID FROM LinkPending WHERE DiscordUserID = @a)", HBClients.DatabaseConnection)) {
             cmd.Parameters.AddWithValue("a", discordID);
             using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -84,7 +58,7 @@ public class HBCommandLinkMinecraft : HBCommand {
         if (isAlreadyLinking) {
             string previousUUID = "";
             ulong existingMessageID = 0uL;
-            using (MySqlCommand cmd = new MySqlCommand("SELECT MinecraftUUID, ReviewMessageID FROM LinkPending WHERE DiscordUserID = @a", HBData.DatabaseConnection)) {
+            using (MySqlCommand cmd = new MySqlCommand("SELECT MinecraftUUID, ReviewMessageID FROM LinkPending WHERE DiscordUserID = @a", HBClients.DatabaseConnection)) {
                 cmd.Parameters.AddWithValue("a", discordID);
                 using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync()) {
@@ -93,7 +67,7 @@ public class HBCommandLinkMinecraft : HBCommand {
                 }
             }
             if (command.User.Username.Equals(apiDiscordUsername, StringComparison.OrdinalIgnoreCase)) {
-                SocketTextChannel channel = (SocketTextChannel)await HBData.DiscordClient.GetChannelAsync(HBData.ReviewChannelID);
+                SocketTextChannel channel = (SocketTextChannel)await HBClients.DiscordClient.GetChannelAsync(HBConfig.ReviewChannelID);
                 IMessage message = await channel.GetMessageAsync(existingMessageID);
 
                 DBUser? eU = await DBUser.FromDiscordIDAsync(discordID);
@@ -121,7 +95,7 @@ public class HBCommandLinkMinecraft : HBCommand {
                     }
                 }
                 await message.DeleteAsync();
-                using (MySqlCommand cmd = new MySqlCommand("DELETE FROM LinkPending WHERE DiscordUserID = @a", HBData.DatabaseConnection)) {
+                using (MySqlCommand cmd = new MySqlCommand("DELETE FROM LinkPending WHERE DiscordUserID = @a", HBClients.DatabaseConnection)) {
                     cmd.Parameters.AddWithValue("a", discordID);
                     await cmd.ExecuteNonQueryAsync();
                 }
@@ -143,12 +117,12 @@ public class HBCommandLinkMinecraft : HBCommand {
                 });
                 return;
             }
-            using (MySqlCommand cmd = new MySqlCommand("UPDATE LinkPending SET MinecraftUUID = @a WHERE DiscordUserID = @b", HBData.DatabaseConnection)) {
+            using (MySqlCommand cmd = new MySqlCommand("UPDATE LinkPending SET MinecraftUUID = @a WHERE DiscordUserID = @b", HBClients.DatabaseConnection)) {
                 cmd.Parameters.AddWithValue("a", uuid);
                 cmd.Parameters.AddWithValue("b", discordID);
                 await cmd.ExecuteNonQueryAsync();
             }
-            using (MySqlCommand cmd = new MySqlCommand("SELECT ReviewMessageID FROM LinkPending WHERE DiscordUserID = @a", HBData.DatabaseConnection)) {
+            using (MySqlCommand cmd = new MySqlCommand("SELECT ReviewMessageID FROM LinkPending WHERE DiscordUserID = @a", HBClients.DatabaseConnection)) {
                 cmd.Parameters.AddWithValue("a", discordID);
                 using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -190,7 +164,7 @@ public class HBCommandLinkMinecraft : HBCommand {
                 return;
             }
             ulong messageID = await DBMethods.UpdateReviewQueue(discordID, uuid, username);
-            using (MySqlCommand cmd = new MySqlCommand("INSERT INTO LinkPending(DiscordUserID, MinecraftUUID, ReviewMessageID) VALUES (@a, @b, @c)", HBData.DatabaseConnection)) {
+            using (MySqlCommand cmd = new MySqlCommand("INSERT INTO LinkPending(DiscordUserID, MinecraftUUID, ReviewMessageID) VALUES (@a, @b, @c)", HBClients.DatabaseConnection)) {
                 cmd.Parameters.AddWithValue("a", discordID);
                 cmd.Parameters.AddWithValue("b", uuid);
                 cmd.Parameters.AddWithValue("c", messageID);

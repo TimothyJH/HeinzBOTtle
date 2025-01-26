@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using HeinzBOTtle.Database;
 using HeinzBOTtle.Hypixel;
 using HeinzBOTtle.Ranks;
+using HeinzBOTtle.Statics;
 using System.Text.Json;
 
 namespace HeinzBOTtle.Commands;
@@ -14,8 +15,8 @@ public class HBCommandPromotions : HBCommand {
 
     public HBCommandPromotions() : base("promotions") { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
-        Json? guild = await HypixelMethods.RetrieveGuildAPI(HBData.HypixelGuildID);
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+        Json? guild = await HypixelMethods.RetrieveGuildAPI(HBConfig.HypixelGuildID);
         Task initialBuffer = Task.Delay(1000);
         if (guild == null || guild.GetBoolean("success") == false) {
             EmbedBuilder failInformation = new EmbedBuilder();

@@ -1,9 +1,7 @@
 ﻿using Discord.WebSocket;
 using Discord;
 using HeinzBOTtle.Database;
-using HeinzBOTtle.Hypixel;
 using HeinzBOTtle.Ranks;
-using System.Text.Json;
 
 namespace HeinzBOTtle.Commands;
 
@@ -14,7 +12,7 @@ public class HBCommandModifyUser : HBCommand {
 
     public HBCommandModifyUser() : base("modify-user", modifiesDatabase: true) { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         ulong executor = command.User.Id;
         uint id = (uint)(long)command.Data.Options.First().Options.First().Value;
 
@@ -66,38 +64,12 @@ public class HBCommandModifyUser : HBCommand {
                 if (username == "-") {
                     uuid = null;
                 } else {
-                    if (!HypixelMethods.IsValidUsername(username)) {
-                        EmbedBuilder fail = new EmbedBuilder();
-                        fail.WithDescription("That is not a valid username.");
-                        fail.WithColor(Color.Gold);
-                        await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                            p.Embed = fail.Build();
-                        });
+                    Json json;
+                    Json? retrievalAttempt = await HandlePlayerAPIRetrievalAsync(username, false, command);
+                    if (retrievalAttempt == null)
                         return;
-                    }
-
-                    Json json = await HypixelMethods.RetrievePlayerAPI(username);
-
-                    bool success = json.GetBoolean("success") ?? false;
-                    if (!success) {
-                        EmbedBuilder fail = new EmbedBuilder();
-                        fail.WithDescription("Oopsies, something went wrong!");
-                        fail.WithColor(Color.Gold);
-                        await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                            p.Embed = fail.Build();
-                        });
-                        return;
-                    }
-
-                    if (json.GetValueKind("player") != JsonValueKind.Object) {
-                        EmbedBuilder fail = new EmbedBuilder();
-                        fail.WithDescription("Hypixel doesn't seem to have any information about the provided player. This player probably changed usernames, never logged into Hypixel, or doesn't exist.");
-                        fail.WithColor(Color.Gold);
-                        await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                            p.Embed = fail.Build();
-                        });
-                        return;
-                    }
+                    else
+                        json = retrievalAttempt;
 
                     username = json.GetString("player.displayname") ?? "?????";
                     uuid = json.GetString("player.uuid") ?? "?????";
@@ -182,13 +154,12 @@ public class HBCommandModifyUser : HBCommand {
                 return;
             case "treehard-level":
                 string rawTreehard = ((string)command.Data.Options.First().Options.ElementAt(1)).Replace("+", "Plus");
-                Console.WriteLine($"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: |{rawTreehard}|");
                 TreehardLevel? treehard = null;
                 foreach (TreehardLevel test in Enum.GetValues(typeof(TreehardLevel)))
                     if (test.ToString().Equals(rawTreehard, StringComparison.OrdinalIgnoreCase)) {
                         treehard = test;
                         break;
-                    } else Console.WriteLine($"|{rawTreehard}| != |{test}|");
+                    }
                 if (treehard == null) {
                     EmbedBuilder fail = new EmbedBuilder();
                     string desc = "Unrecognized Treehard level. Please make sure that the rank you type matches one of the following:";

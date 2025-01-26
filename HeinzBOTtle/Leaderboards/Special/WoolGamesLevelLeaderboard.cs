@@ -17,7 +17,6 @@ public class WoolGamesLevelLeaderboard : Leaderboard {
     protected override PlayerEntry? CalculatePlayer(Json player) {
         if (player.GetValueKind("player.stats.WoolGames.progression.experience") != JsonValueKind.Number)
             return new PlayerEntry(player.GetString("player.displayname") ?? "?????", 0);
-
         return new PlayerEntry(player.GetString("player.displayname") ?? "?????", (int)(player.GetDouble("player.stats.WoolGames.progression.experience") ?? 0.0));
     }
 

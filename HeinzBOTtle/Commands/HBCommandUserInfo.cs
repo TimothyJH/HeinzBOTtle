@@ -1,8 +1,6 @@
 ﻿using Discord.WebSocket;
 using Discord;
 using HeinzBOTtle.Database;
-using HeinzBOTtle.Hypixel;
-using System.Text.Json;
 
 namespace HeinzBOTtle.Commands;
 
@@ -13,7 +11,7 @@ public class HBCommandUserInfo : HBCommand {
 
     public HBCommandUserInfo() : base("user-info") { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         DBUser? user = null;
         string? cachedMCUsername = null;
         switch (command.Data.Options.First().Name) {
@@ -26,38 +24,13 @@ public class HBCommandUserInfo : HBCommand {
                 break;
             case "from-minecraft-username":
                 string username = (string)command.Data.Options.First().Options.First();
-                if (!HypixelMethods.IsValidUsername(username)) {
-                    EmbedBuilder fail = new EmbedBuilder();
-                    fail.WithDescription("That is not a valid username.");
-                    fail.WithColor(Color.Gold);
-                    await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                        p.Embed = fail.Build();
-                    });
-                    return;
-                }
 
-                Json json = await HypixelMethods.RetrievePlayerAPI(username);
-
-                bool success = json.GetBoolean("success") ?? false;
-                if (!success) {
-                    EmbedBuilder fail = new EmbedBuilder();
-                    fail.WithDescription("Oopsies, something went wrong!");
-                    fail.WithColor(Color.Gold);
-                    await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                        p.Embed = fail.Build();
-                    });
+                Json json;
+                Json? retrievalAttempt = await HandlePlayerAPIRetrievalAsync(username, false, command);
+                if (retrievalAttempt == null)
                     return;
-                }
-
-                if (json.GetValueKind("player") != JsonValueKind.Object) {
-                    EmbedBuilder fail = new EmbedBuilder();
-                    fail.WithDescription("Hypixel doesn't seem to have any information about the provided player. This player probably changed usernames, never logged into Hypixel, or doesn't exist.");
-                    fail.WithColor(Color.Gold);
-                    await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                        p.Embed = fail.Build();
-                    });
-                    return;
-                }
+                else
+                    json = retrievalAttempt;
 
                 cachedMCUsername = json.GetString("player.displayname") ?? "?????";
                 user = await DBUser.FromMinecraftUUIDAsync(json.GetString("player.uuid") ?? "?????");

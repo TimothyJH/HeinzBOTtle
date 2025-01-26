@@ -11,7 +11,7 @@ public class HBCommandUpdate : HBCommand {
 
     public HBCommandUpdate() : base("update", modifiesDatabase: true) { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         DBUser user;
         DBUser? self = await DBUser.FromDiscordIDAsync(command.User.Id);
         if (self == null) {

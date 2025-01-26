@@ -17,7 +17,6 @@ public class SkyWarsLevelLeaderboard : Leaderboard {
     protected override PlayerEntry? CalculatePlayer(Json player) {
         if (player.GetValueKind("player.stats.SkyWars.skywars_experience") != JsonValueKind.Number)
             return new PlayerEntry(player.GetString("player.displayname") ?? "?????", 0);
-
         return new PlayerEntry(player.GetString("player.displayname") ?? "?????", (int)(player.GetDouble("player.stats.SkyWars.skywars_experience") ?? 0.0));
     }
 

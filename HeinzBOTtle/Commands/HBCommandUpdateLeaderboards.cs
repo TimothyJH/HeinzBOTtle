@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using HeinzBOTtle.Leaderboards;
+using HeinzBOTtle.Statics;
 
 namespace HeinzBOTtle.Commands;
 
@@ -11,7 +12,7 @@ public class HBCommandUpdateLeaderboards : HBCommand {
 
     public HBCommandUpdateLeaderboards() : base("update-leaderboards") { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         if (!HBData.LeaderboardsUpdating.WaitOne(100)) {
             EmbedBuilder updating = new EmbedBuilder();
             updating.WithDescription("The leaderboards are already in the process of updating!");

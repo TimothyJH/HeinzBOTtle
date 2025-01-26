@@ -3,6 +3,7 @@ using Discord.Rest;
 using Discord.WebSocket;
 using HeinzBOTtle.Hypixel;
 using HeinzBOTtle.Leaderboards.Special;
+using HeinzBOTtle.Statics;
 using System.Text.Json;
 
 namespace HeinzBOTtle.Leaderboards;
@@ -11,7 +12,7 @@ public static class LBMethods {
 
     /// <summary>Resets all entries in all leaderboards.</summary>
     public static void WipeLeaderboards() {
-        foreach (Leaderboard leaderboard in HBData.LeaderboardList)
+        foreach (Leaderboard leaderboard in HBAssets.LeaderboardList)
             leaderboard.Reset();
     }
 
@@ -40,12 +41,11 @@ public static class LBMethods {
     public static async Task UpdateLeaderboards() {
         // Performing some setup:
         HBData.LeaderboardRankings.Clear();
-        HBData.QuestParticipationsLeaderboardMap.Clear();
-        SocketTextChannel lbChannel = (SocketTextChannel)HBData.DiscordClient.GetChannel(HBData.LeaderboardsChannelID);
+        SocketTextChannel lbChannel = (SocketTextChannel)HBClients.DiscordClient.GetChannel(HBConfig.LeaderboardsChannelID);
         WipeLeaderboards();
 
         // Requesting and processing guild information:
-        Json? guild = await HypixelMethods.RetrieveGuildAPI(HBData.HypixelGuildID);
+        Json? guild = await HypixelMethods.RetrieveGuildAPI(HBConfig.HypixelGuildID);
         Task initialBuffer = Task.Delay(1000);
         if (guild == null || guild.GetBoolean("success") == false) {
             await HBData.Log.InfoAsync("ERROR: Guild information retrieval unsuccessful :(");
@@ -58,6 +58,7 @@ public static class LBMethods {
         }
 
         // Getting the members' UUIDs and guild quest participations from the JSON array:
+        Dictionary<string, int> questParticipationsMap = new Dictionary<string, int>();
         List<string> uuids = new List<string>();
         foreach (JsonElement member in members) {
             if (member.ValueKind != JsonValueKind.Object)
@@ -80,8 +81,7 @@ public static class LBMethods {
 
             if (memberDic.ContainsKey("questParticipation")) {
                 JsonElement questParticipations = memberDic["questParticipation"];
-                int questParticipationsInt = (int)questParticipations.GetDouble();
-                HBData.QuestParticipationsLeaderboardMap.Add(uuidString, questParticipationsInt);
+                questParticipationsMap.Add(uuidString, (int)questParticipations.GetDouble());
             }
         }
 
@@ -89,6 +89,9 @@ public static class LBMethods {
         Task channelWipeTask = WipeLeaderboardsChannel(lbChannel);
 
         // Requesting player data and populating leaderboards:
+        GuildQuestChallengesCompletedLeaderboard guildQuestChallengesCompletedLeaderboard = (GuildQuestChallengesCompletedLeaderboard)
+            (HBAssets.LeaderboardList.Find(x => x is GuildQuestChallengesCompletedLeaderboard) ?? new GuildQuestChallengesCompletedLeaderboard());
+        guildQuestChallengesCompletedLeaderboard.QuestParticipationsMap = questParticipationsMap;
         await initialBuffer;
         foreach (string uuid in uuids) {
             Task buffer = Task.Delay(1000);
@@ -97,20 +100,21 @@ public static class LBMethods {
                 await HBData.Log.InfoAsync("Ignoring player " + uuid + " in leaderboards update");
             else {
                 HBData.LeaderboardRankings.Add((json.GetString("player.displayname") ?? "?????").ToLower(), new LBRankingData(json));
-                foreach (Leaderboard leaderboard in HBData.LeaderboardList) {
+                foreach (Leaderboard leaderboard in HBAssets.LeaderboardList) {
                     if (leaderboard is not AverageLeaderboardPositionLeaderboard)
                         leaderboard.EnterPlayer(json);
                 }
             }
             await buffer;
         }
+        guildQuestChallengesCompletedLeaderboard.QuestParticipationsMap = null;
 
         // Refreshing rankings cache:
         RefreshRankings();
 
         // Populating the leaderboard for Average Leaderboard Position:
         AverageLeaderboardPositionLeaderboard averageLeaderboardPositionLeaderboard = (AverageLeaderboardPositionLeaderboard)
-            (HBData.LeaderboardList.Find(x => x is AverageLeaderboardPositionLeaderboard) ?? new AverageLeaderboardPositionLeaderboard());
+            (HBAssets.LeaderboardList.Find(x => x is AverageLeaderboardPositionLeaderboard) ?? new AverageLeaderboardPositionLeaderboard());
         foreach (LBRankingData player in HBData.LeaderboardRankings.Values)
             averageLeaderboardPositionLeaderboard.EnterPlayer(player);
         RefreshRankings(averageLeaderboardPositionLeaderboard);
@@ -120,7 +124,7 @@ public static class LBMethods {
         await channelWipeTask;
 
         // Post new leaderboards:
-        foreach (Leaderboard leaderboard in HBData.LeaderboardList) {
+        foreach (Leaderboard leaderboard in HBAssets.LeaderboardList) {
             RestUserMessage header = await lbChannel.SendMessageAsync(embed: leaderboard.GenerateHeaderEmbed());
             await Task.Delay(1000);
             SocketThreadChannel thread = await lbChannel.CreateThreadAsync(leaderboard.GameTitle + (leaderboard.GameStat.Equals("") ? "" : $" ({leaderboard.GameStat})"), message: header);
@@ -133,7 +137,7 @@ public static class LBMethods {
 
         // Pin the leaderboard headers so that they display in alphabetical order:
         List<IMessage> headers = new List<IMessage>();
-        IAsyncEnumerable<IReadOnlyCollection<IMessage>> pagesAsync = lbChannel.GetMessagesAsync(HBData.LeaderboardList.Count);
+        IAsyncEnumerable<IReadOnlyCollection<IMessage>> pagesAsync = lbChannel.GetMessagesAsync(HBAssets.LeaderboardList.Count);
         List<IReadOnlyCollection<IMessage>> pages = await pagesAsync.ToListAsync();
         foreach (IReadOnlyCollection<IMessage> page in pages) {
             foreach (IMessage header in page) {
@@ -150,7 +154,7 @@ public static class LBMethods {
 
         // Delete the pin messages:
         List<IMessage> headersPins = new List<IMessage>();
-        IAsyncEnumerable<IReadOnlyCollection<IMessage>> pagesPinsAsync = lbChannel.GetMessagesAsync(HBData.LeaderboardList.Count);
+        IAsyncEnumerable<IReadOnlyCollection<IMessage>> pagesPinsAsync = lbChannel.GetMessagesAsync(HBAssets.LeaderboardList.Count);
         List<IReadOnlyCollection<IMessage>> pagesPins = await pagesPinsAsync.ToListAsync();
         foreach (IReadOnlyCollection<IMessage> page in pagesPins) {
             foreach (IMessage header in page) {
@@ -169,7 +173,7 @@ public static class LBMethods {
 
     /// <summary>Updates the rankings in <see cref="HBData.LeaderboardRankings"/> for all leaderboards.</summary>
     public static void RefreshRankings() {
-        foreach (Leaderboard leaderboard in HBData.LeaderboardList)
+        foreach (Leaderboard leaderboard in HBAssets.LeaderboardList)
             RefreshRankings(leaderboard);
     }
 
@@ -197,7 +201,7 @@ public static class LBMethods {
     /// <param name="channel">The leaderboards channel from which to retrieve the rankings</param>
     public static async Task RefreshRankingsFromChannelAsync(SocketTextChannel channel) {
         List<IMessage> messages = new List<IMessage>();
-        List<IReadOnlyCollection<IMessage>> pages = await channel.GetMessagesAsync(HBData.LeaderboardList.Count + 5).ToListAsync();
+        List<IReadOnlyCollection<IMessage>> pages = await channel.GetMessagesAsync(HBAssets.LeaderboardList.Count + 5).ToListAsync();
         foreach (IReadOnlyCollection<IMessage> page in pages) {
             foreach (IMessage message in page)
                 messages.Add(message);
@@ -208,7 +212,7 @@ public static class LBMethods {
             if (message.Embeds.Count == 0 || message.Thread == null)
                 continue;
             IEmbed embed = message.Embeds.First();
-            Leaderboard? leaderboard = HBData.LeaderboardList.Find(x => x.GameTitle.Equals(embed.Title) && x.GameStat.Equals(embed.Description ?? ""));
+            Leaderboard? leaderboard = HBAssets.LeaderboardList.Find(x => x.GameTitle.Equals(embed.Title) && x.GameStat.Equals(embed.Description ?? ""));
             if (leaderboard == null)
                 continue;
             if (initializedPlayers)

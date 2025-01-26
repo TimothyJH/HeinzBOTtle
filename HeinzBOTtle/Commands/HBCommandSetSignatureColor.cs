@@ -13,7 +13,7 @@ public class HBCommandSetSignatureColor : HBCommand {
 
     public HBCommandSetSignatureColor() : base("set-signature-color", modifiesDatabase: true) { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         DBUser? user = await DBUser.FromDiscordIDAsync(command.User.Id);
         if (user == null) {
             EmbedBuilder fail = new EmbedBuilder();

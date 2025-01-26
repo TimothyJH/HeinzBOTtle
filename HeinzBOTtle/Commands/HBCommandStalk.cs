@@ -2,6 +2,7 @@
 using Discord.WebSocket;
 using HeinzBOTtle.Hypixel;
 using HeinzBOTtle.Leaderboards;
+using HeinzBOTtle.Statics;
 
 namespace HeinzBOTtle.Commands;
 
@@ -12,7 +13,7 @@ public class HBCommandStalk : HBCommand {
 
     public HBCommandStalk() : base("stalk") { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         if (!HBData.LeaderboardsUpdating.WaitOne(100)) {
             EmbedBuilder fail = new EmbedBuilder();
             fail.WithDescription("This command cannot be used while the leaderboards are updating.");

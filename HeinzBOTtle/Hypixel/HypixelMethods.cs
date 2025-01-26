@@ -1,4 +1,7 @@
-﻿namespace HeinzBOTtle.Hypixel;
+﻿using HeinzBOTtle.Statics;
+using System.Text.Json;
+
+namespace HeinzBOTtle.Hypixel;
 
 public static class HypixelMethods {
 
@@ -7,61 +10,45 @@ public static class HypixelMethods {
     /// <param name="uuid">True if the identifier is a UUID, false if it is a username</param>
     /// <returns>The player JSON response.</returns>
     public static async Task<Json> RetrievePlayerAPI(string identifier, bool uuid = false) {
-        identifier = identifier.ToLower();
-        if (HBData.APICache.ContainsKey(identifier) && DateTime.Now.Ticks - HBData.APICache[identifier].Timestamp < 600L * 10000000L) {
-            // This is the case where the API is being polled when we already have a recent enough copy.
-            await HBData.Log.InfoAsync("API cache hit for player: " + identifier);
-            return HBData.APICache[identifier].JsonResponse;
-        } else {
-            Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync($"https://api.hypixel.net/player?key={HBData.HypixelKey}&{(uuid ? "uuid" : "name")}={identifier}");
-            Task waitTimerTask = Task.Delay(10000);
-            await HBData.Log.InfoAsync("Made API request for player: " + identifier);
-            Task.WaitAny(responseTask, waitTimerTask);
-            if (!responseTask.IsCompleted)
-                return new Json("{\"success\": false}");
-            string json = await responseTask.Result.Content.ReadAsStringAsync();
-            Json formatted = new Json(json);
-            HBData.APICache[identifier] = new CachedInfo(DateTime.Now.Ticks, formatted);
-            return formatted;
-        }
+        return await RequestHypixelAPI("player", uuid ? "uuid" : "name", identifier.ToLower());
     }
 
     /// <summary>Makes a guild request to the Hypixel API. The cache may be used if the same guild was requested less than 10 minutes ago.</summary>
     /// <param name="guildID">The database ID of the guild whose data to request</param>
     /// <returns>The guild JSON response.</returns>
     public static async Task<Json> RetrieveGuildAPI(string guildID) {
-        if (HBData.APICache.ContainsKey(guildID) && DateTime.Now.Ticks - HBData.APICache[guildID].Timestamp < 600L * 10000000L) {
-            // This is the case where the API is being polled when we already have a recent enough copy.
-            await HBData.Log.InfoAsync("API cache hit for guild: " + guildID);
-            return HBData.APICache[guildID].JsonResponse;
-        } else {
-            Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync($"https://api.hypixel.net/guild?key={HBData.HypixelKey}&id={guildID}");
-            Task waitTimerTask = Task.Delay(10000);
-            await HBData.Log.InfoAsync("Made API request for guild: " + guildID);
-            Task.WaitAny(responseTask, waitTimerTask);
-            if (!responseTask.IsCompleted)
-                return new Json("{\"success\": false}");
-            string json = await responseTask.Result.Content.ReadAsStringAsync();
-            Json formatted = new Json(json);
-            HBData.APICache[guildID] = new CachedInfo(DateTime.Now.Ticks, formatted);
-            return formatted;
-        }
+        return await RequestHypixelAPI("guild", "id", guildID);
     }
 
-    /// <summary>Makes a request to specified endpoint the Hypixel API with a timeout of 10 seconds.</summary>
+    /// <summary>Makes an in-game leaderboards request to the Hypixel API. The cache may be used if the leaderboards were requested less than 10 minutes ago.</summary>
+    /// <returns>The leaderboards JSON response.</returns>
+    public static async Task<Json> RetrieveLeaderboardsAPI() {
+        return await RequestHypixelAPI("v2/leaderboards");
+    }
+
+    /// <summary>Makes a request to specified endpoint the Hypixel API with a default timeout of 10 seconds.</summary>
     /// <param name="endpoint">The endpoint to contact</param>
-    /// <param name="parameter">The parameter of the request</param>
-    /// <param name="argument">The argument to the parameter of the request</param>
-    /// <returns>The JSON response.</returns>
-    public static async Task<Json?> RequestWithTimeout(string endpoint, string parameter, string argument) {
-        Task<HttpResponseMessage> responseTask = HBData.HttpClient.GetAsync("https://api.hypixel.net/" + endpoint + "?key=" + HBData.HypixelKey + "&" + parameter + "=" + argument);
-        Task waitTimerTask = Task.Delay(10000);
-        await HBData.Log.InfoAsync($"Made API request at '{endpoint}' where '{parameter}' = '{argument}'");
+    /// <param name="parameter">The parameter of the request (optional)</param>
+    /// <param name="argument">The argument to the parameter of the request (only required when there is a parameter)</param>
+    /// <param name="timeout">The amount of time in milliseconds to wait for the request to finish before cancelling it (optional)</param>
+    /// <returns>The JSON response if the query was successful, otherwise a JSON object with "success" => false.</returns>
+    private static async Task<Json> RequestHypixelAPI(string endpoint, string parameter = "", string? argument = "", int timeout = 10000) {
+        string cacheKey = $"{endpoint}{(parameter != "" ? $"?{parameter}={argument}" : "")}";
+        if (HBData.APICache.TryGetValue(cacheKey, out CachedInfo? cacheValue) && DateTime.Now.Ticks - cacheValue.Timestamp < 600L * 10000000L) {
+            // This is the case where the API is being polled when we already have a recent enough copy.
+            await HBData.Log.InfoAsync($"API cache hit: {cacheKey}");
+            return cacheValue.JsonResponse;
+        }
+        string query = $"https://api.hypixel.net/{endpoint}?key={HBConfig.HypixelKey}{(parameter != null ? $"&{parameter}={argument}" : "")}";
+        Task<HttpResponseMessage> responseTask = HBClients.HttpClient.GetAsync(query);
+        Task waitTimerTask = Task.Delay(timeout);
+        await HBData.Log.InfoAsync($"Made API request: {cacheKey}");
         Task.WaitAny(responseTask, waitTimerTask);
         if (!responseTask.IsCompleted)
-            return null;
+            return new Json("{\"success\": false}"); ;
         string json = await responseTask.Result.Content.ReadAsStringAsync();
         Json formatted = new Json(json);
+        HBData.APICache[cacheKey] = new CachedInfo(DateTime.Now.Ticks, formatted);
         return formatted;
     }
 
@@ -82,7 +69,7 @@ public static class HypixelMethods {
     /// <param name="rawUUID">The raw, undashed UUID</param>
     /// <returns>A Minecraft UUID that is dashed as presented in Minecraft.</returns>
     public static string ToDashedUUID(string rawUUID) {
-        return $"{rawUUID[0..8]}-{rawUUID[8..16]}-{rawUUID[16..24]}-{rawUUID[24..32]}";
+        return $"{rawUUID[0..8]}-{rawUUID[8..12]}-{rawUUID[12..16]}-{rawUUID[16..20]}-{rawUUID[20..32]}";
     }
 
     /// <param name="username">The username to check</param>
@@ -96,6 +83,62 @@ public static class HypixelMethods {
                 return false;
         }
         return true;
+    }
+
+    /// <summary>Finds the best position held by the player on all the API-provided in-game leaderboards that don't reset.</summary>
+    /// <param name="uuid">The undashed UUID of the player whose best position to find</param>
+    /// <returns>-1 if there is an error, <see cref="int.MaxValue"/> if the player is not on the searched leaderboards, or the 1-based position that was found.</returns>
+    public static async Task<int> BestLeaderboardPositionAsync(string uuid) {
+        // Requesting and processing baseline leaderboard information:
+        Task initialBuffer = Task.Delay(1000);
+        Json? leaderboards = await RetrieveLeaderboardsAPI();
+        initialBuffer.Wait();
+        if (leaderboards == null || leaderboards.GetBoolean("success") == false) {
+            await HBData.Log.InfoAsync("ERROR: In-game leaderboards retrieval unsuccessful :(");
+            return -1;
+        }
+        Dictionary<string, List<JsonElement>>? groups = leaderboards.GetObject<string, List<JsonElement>>("leaderboards");
+        if (groups == null || groups.Count == 0) {
+            await HBData.Log.InfoAsync("ERROR: In-game leaderboards retrieval unsuccessful :(");
+            return -1;
+        }
+
+        // Examining the leaderboards
+        int bestPosition = int.MaxValue;
+        string[] excludedPrefixes = { "Daily", "Weekly", "Monthly" };
+        foreach (List<JsonElement> group in groups.Values) {
+            foreach (JsonElement leaderboardRaw in group) {
+                if (leaderboardRaw.ValueKind != JsonValueKind.Object)
+                    continue;
+                Dictionary<string, JsonElement>? leaderboard;
+                try {
+                    leaderboard = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(leaderboardRaw);
+                } catch {
+                    leaderboard = null;
+                }
+                if (leaderboard == null || !leaderboard.ContainsKey("prefix") || !leaderboard.ContainsKey("leaders"))
+                    continue;
+                string? prefix = leaderboard["prefix"].GetString();
+                if (prefix == null || excludedPrefixes.Contains(prefix))
+                    continue;
+                List<string>? players;
+                try {
+                    players = JsonSerializer.Deserialize<List<string>>(leaderboard["leaders"]);
+                } catch {
+                    players = null;
+                }
+                if (players == null || players.Count == 0)
+                    continue;
+                int limit = int.Min(100, players.Count);
+                for (int i = 0; i < limit; i++) {
+                    string leaderboarder = players[i].Replace("-", "");
+                    if (uuid.Equals(leaderboarder) && (i + 1) < bestPosition)
+                        bestPosition = i + 1;
+                }
+            }
+        }
+
+        return bestPosition;
     }
 
     // Taken from forums (lol)

@@ -1,7 +1,5 @@
 ﻿using Discord.WebSocket;
 using Discord;
-using HeinzBOTtle.Hypixel;
-using System.Text.Json;
 using HeinzBOTtle.Database;
 
 namespace HeinzBOTtle.Commands;
@@ -13,7 +11,7 @@ public class HBCommandLinkNewUser : HBCommand {
 
     public HBCommandLinkNewUser() : base("link-new-user", modifiesDatabase: true) { }
 
-    public override async Task ExecuteCommandAsync(SocketSlashCommand command) {
+    protected override async Task ExecuteCommandAsync(SocketSlashCommand command) {
         ulong discordID = 0;
         string username = "";
         foreach (SocketSlashCommandDataOption option in command.Data.Options) {
@@ -26,38 +24,13 @@ public class HBCommandLinkNewUser : HBCommand {
                     break;
             }
         }
-        if (!HypixelMethods.IsValidUsername(username)) {
-            EmbedBuilder fail = new EmbedBuilder();
-            fail.WithDescription("That is not a valid username.");
-            fail.WithColor(Color.Gold);
-            await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                p.Embed = fail.Build();
-            });
-            return;
-        }
 
-        Json json = await HypixelMethods.RetrievePlayerAPI(username);
-
-        bool success = json.GetBoolean("success") ?? false;
-        if (!success) {
-            EmbedBuilder fail = new EmbedBuilder();
-            fail.WithDescription("Oopsies, something went wrong!");
-            fail.WithColor(Color.Gold);
-            await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                p.Embed = fail.Build();
-            });
+        Json json;
+        Json? retrievalAttempt = await HandlePlayerAPIRetrievalAsync(username, false, command);
+        if (retrievalAttempt == null)
             return;
-        }
-
-        if (json.GetValueKind("player") != JsonValueKind.Object) {
-            EmbedBuilder fail = new EmbedBuilder();
-            fail.WithDescription("Hypixel doesn't seem to have any information about the provided player. This player probably changed usernames, never logged into Hypixel, or doesn't exist.");
-            fail.WithColor(Color.Gold);
-            await command.ModifyOriginalResponseAsync(delegate (MessageProperties p) {
-                p.Embed = fail.Build();
-            });
-            return;
-        }
+        else
+            json = retrievalAttempt;
 
         username = json.GetString("player.displayname") ?? "?????";
         string uuid = json.GetString("player.uuid") ?? "?????";

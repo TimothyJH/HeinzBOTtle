@@ -99,24 +99,6 @@ public sealed class HBLog : IDisposable {
             Console.WriteLine($"(!) MESSAGE COULD NOT BE LOGGED TO FILE!");
     }
 
-
-    /// <summary>Applies a prefix to the provided log message and adjusts any additional lines in the message to align properly with the first line.</summary>
-    /// <param name="message">The raw message to be modified</param>
-    /// <param name="source">The source of the message</param>
-    /// <param name="ts">The message timestamp</param>
-    public void ApplyPrefix(ref string message, string source, DateTime ts) {
-        string prefix = $"[{ts.Month}/{ts.Day} {ts.Hour}:{ts.Minute:D2}:{ts.Second:D2}] <{source}> ";
-        if (message.Contains('\n')) {
-            int paddingLength = prefix.Length + 1;
-            char[] padding = new char[paddingLength];
-            padding[0] = '\n';
-            for (int i = 1; i < paddingLength; i++)
-                padding[i] = ' ';
-            message = message.Replace("\n", new string(padding));
-        }
-        message = prefix + message;
-    }
-
     /// <summary>Fluishes the log file's stream and temporarily releases process control over the log file so that the file may reveal its contents.</summary>
     public async Task ReleaseLogsAsync() {
         Console.WriteLine("Attempting to release the log temporarily; the operations associated with this will not be logged to the log file.");
@@ -172,6 +154,23 @@ public sealed class HBLog : IDisposable {
         FullLogWriter!.Close();
         ReducedLogWriter!.Flush();
         ReducedLogWriter!.Dispose();
+    }
+
+    /// <summary>Applies a prefix to the provided log message and adjusts any additional lines in the message to align properly with the first line.</summary>
+    /// <param name="message">The raw message to be modified</param>
+    /// <param name="source">The source of the message</param>
+    /// <param name="ts">The message timestamp</param>
+    private static void ApplyPrefix(ref string message, string source, DateTime ts) {
+        string prefix = $"[{ts.Month}/{ts.Day} {ts.Hour}:{ts.Minute:D2}:{ts.Second:D2}] <{source}> ";
+        if (message.Contains('\n')) {
+            int paddingLength = prefix.Length + 1;
+            char[] padding = new char[paddingLength];
+            padding[0] = '\n';
+            for (int i = 1; i < paddingLength; i++)
+                padding[i] = ' ';
+            message = message.Replace("\n", new string(padding));
+        }
+        message = prefix + message;
     }
 
 }

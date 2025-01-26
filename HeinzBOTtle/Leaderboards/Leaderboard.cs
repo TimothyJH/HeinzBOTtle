@@ -1,5 +1,6 @@
 ﻿using Discord;
 using HeinzBOTtle.Hypixel;
+using HeinzBOTtle.Statics;
 
 namespace HeinzBOTtle.Leaderboards;
 
