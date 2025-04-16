@@ -141,6 +141,19 @@ public static class HypixelMethods {
         return bestPosition;
     }
 
+    /// <param name="player">The JSON for the player whose wins are to be calculated</param>
+    /// <returns>The total number of wins the player has among all the Wool Games.</returns>
+    public static int GetTotalWoolGamesWins(Json player) {
+        int wins = 0;
+        if (player.GetValueKind("player.achievements.woolgames_wool_wars_winner") == JsonValueKind.Number)
+            wins += (int)(player.GetDouble("player.achievements.woolgames_wool_wars_winner") ?? 0.0);
+        if (player.GetValueKind("player.achievements.woolgames_sheep_wars_winner") == JsonValueKind.Number)
+            wins += (int)(player.GetDouble("player.achievements.woolgames_sheep_wars_winner") ?? 0.0);
+        if (player.GetValueKind("player.stats.WoolGames.capture_the_wool.stats.participated_wins") == JsonValueKind.Number)
+            wins += (int)(player.GetDouble("player.stats.WoolGames.capture_the_wool.stats.participated_wins") ?? 0.0);
+        return wins;
+    }
+
     // Taken from forums (lol)
     public static double GetNetworkLevelFromXP(double xp) {
         return Math.Sqrt(2.0 * xp + 30625.0) / 50.0 - 2.5;

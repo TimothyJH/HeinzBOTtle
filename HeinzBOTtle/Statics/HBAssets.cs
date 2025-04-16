@@ -1,5 +1,6 @@
 ﻿using Discord;
 using HeinzBOTtle.Commands;
+using HeinzBOTtle.Hypixel;
 using HeinzBOTtle.Leaderboards;
 using HeinzBOTtle.Leaderboards.Special;
 using HeinzBOTtle.Requirements;
@@ -106,7 +107,7 @@ public static class HBAssets {
             new SimpleRequirement("Hades", "Mega Walls", "player.achievements.walls3_wins", 50),
             new CompoundRequirement("Snow baller", "Paintball Warfare", "player.achievements.paintball_wins", 300, "player.achievements.paintball_kills", 10000),
             new SimpleRequirement("Yggdrasil", "SkyBlock", "player.achievements.skyblock_sb_levels", 120),
-            new SimpleRequirement("Shepherd", "Wool Wars", "player.stats.WoolGames.wool_wars.stats.wins", 300)
+            new PredicatedRequirement("Shepherd", "Wool Games", player => HypixelMethods.GetTotalWoolGamesWins(player) >= 600)
         ];
     }
 
